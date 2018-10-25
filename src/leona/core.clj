@@ -3,7 +3,6 @@
             [com.walmartlabs.lacinia.schema :as schema]
             [leona.lacinia.schema :refer [transform]]))
 
-
 (s/def ::primary-functions (s/coll-of string?))
 (s/def ::home-planet string?)
 (s/def ::id int?)
@@ -15,14 +14,16 @@
 (s/def ::droid (s/keys :req-un [::primary-functions
                                 ::id
                                 ::name
-                                ::appears-in]))
+                                ::appears-in]
+                       :opt-un [::ids]))
 
-(s/def ::human (s/keys :req-un [::home-planet
-                                ::id
-                                ::ids
-                                ::name
-                                ::episode
-                                ::appears-in]))
+(s/def ::human (s/keys
+                :req [::home-planet
+                      ::id
+                      ::ids
+                      ::name
+                      ::appears-in]
+                :opt [::episode]))
 
 (defn create-schema! [] {:query-specs #{}})
 

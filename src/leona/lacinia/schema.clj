@@ -9,34 +9,60 @@
             [spec-tools.parse :as parse]
             [spec-tools.visitor :as visitor]))
 
-(defn- only-entry? [key a-map] (= [key] (keys a-map)))
+(defn qualified-gql-name->clj-name
+  [t]
+  (-> t
+      (name)
+      (str/replace #"___" "/")
+      (str/replace #"__" ".")
+      (csk/->kebab-case)
+      (keyword)))
 
-(defn- simplify-all-of [spec]
-  (let [subspecs (->> (:allOf spec) (remove empty?))]
-    (cond
-      (empty? subspecs) (dissoc spec :allOf)
-      (and (= (count subspecs) 1) (only-entry? :allOf spec)) (first subspecs)
-      :else (assoc spec :allOf subspecs))))
+(defn clj-name->gql-name
+  [t]
+  (-> t
+      (name)
+      (csk/->snake_case)
+      (keyword)))
+
+(defn clj-name->qualified-gql-name
+  [t]
+  (let [t (if (str/starts-with? (str t) ":")
+            (-> t str (subs 1))
+            (str t))]
+    (-> t
+        (csk/->snake_case)
+        (str/replace #"\." "__")
+        (str/replace #"\/" "___")
+        (keyword))))
+
+(defn- only-entry? [key a-map] (= [key] (keys a-map)))
 
 (defn- spec-dispatch [dispatch _ _ _] dispatch)
 
 (defmulti accept-spec spec-dispatch :default ::default)
 
+(def ^:dynamic *context* nil)
+
 (defn transform
   ([spec]
    (transform spec nil))
   ([spec options]
-   (visitor/visit spec accept-spec options)))
+   (binding [*context* (atom {})]
+     (visitor/visit spec accept-spec options))))
 
 (defn non-null
   [t]
   (cons 'non-null [t]))
 
 (defn list
-  [t]
-  (if (and (map? t) (contains? t :type))
-    {:type (cons 'list [(:type t)])}
-    {:type (cons 'list [t])}))
+  ([t]
+   (list t true))
+  ([t nn?]
+   (if (and (map? t) (contains? t :type))
+
+     {:type (non-null (cons 'list [(:type t)]))}
+     {:type (non-null (cons 'list [t]))})))
 
 ;; any? (one-of [(return nil) (any-printable)])
 (defmethod accept-spec 'clojure.core/any? [_ _ _ _] {})
@@ -47,9 +73,9 @@
 ;;; number? (one-of [(large-integer) (double)])
 (defmethod accept-spec 'clojure.core/number? [_ _ _ _] {:type (non-null 'Float)})
 
-(defmethod accept-spec 'clojure.core/pos? [_ _ _ _] {:minimum 0 :exclusiveMinimum true})
+(defmethod accept-spec 'clojure.core/pos? [_ _ _ _] {:type (non-null 'Int)})
 
-(defmethod accept-spec 'clojure.core/neg? [_ _ _ _] {:maximum 0 :exclusiveMaximum true})
+(defmethod accept-spec 'clojure.core/neg? [_ _ _ _] {:type (non-null 'Int)})
 
 ;; integer? (large-integer)
 (defmethod accept-spec 'clojure.core/integer? [_ _ _ _] {:type (non-null 'Int)})
@@ -106,7 +132,7 @@
 (defmethod accept-spec 'clojure.core/qualified-symbol? [_ _ _ _] {:type (non-null 'String)})
 
 ;; uuid? (uuid)
-(defmethod accept-spec 'clojure.core/uuid? [_ _ _ _] {:type 'ID})
+(defmethod accept-spec 'clojure.core/uuid? [_ _ _ _] {:type (non-null 'ID)})
 
 ;; uri? (fmap #(java.net.URI/create (str "http://" % ".com")) (uuid))
 (defmethod accept-spec 'clojure.core/uri? [_ _ _ _] {:type (non-null 'String)})
@@ -119,37 +145,9 @@
 ;;             (large-integer))
 (defmethod accept-spec 'clojure.core/inst? [_ _ _ _] {:type (non-null 'String)})
 
-;; seqable? (one-of [(return nil)
-;;                   (list simple)
-;;                   (vector simple)
-;;                   (map simple simple)
-;;                   (set simple)
-;;                   (string-alphanumeric)])
-(defmethod accept-spec 'clojure.core/seqable? [_ _ _ _] {:type "array"})
-
-;; indexed? (vector simple)
-(defmethod accept-spec 'clojure.core/map? [_ _ _ _] {:type "array"})
-
-;; map? (map simple simple)
-(defmethod accept-spec 'clojure.core/map? [_ _ _ _] {:type "object"})
-
-;; vector? (vector simple)
-(defmethod accept-spec 'clojure.core/vector? [_ _ _ _] {:type "array"})
-
-;; list? (list simple)
-(defmethod accept-spec 'clojure.core/list? [_ _ _ _] {:type "array"})
-
-;; seq? (list simple)
-(defmethod accept-spec 'clojure.core/seq? [_ _ _ _] {:type "array"})
 
 ;; char? (char)
 (defmethod accept-spec 'clojure.core/char? [_ _ _ _] {:type (non-null 'String)})
-
-;; set? (set simple)
-(defmethod accept-spec 'clojure.core/set? [_ _ _ _] {:type "array" :uniqueItems true})
-
-;; nil? (return nil)
-(defmethod accept-spec 'clojure.core/nil? [_ _ _ _] {:type "null"})
 
 ;; false? (return false)
 (defmethod accept-spec 'clojure.core/false? [_ _ _ _] {:type (non-null 'Boolean)})
@@ -163,21 +161,6 @@
 ;; rational? (one-of [(large-integer) (ratio)])
 (defmethod accept-spec 'clojure.core/rational? [_ _ _ _] {:type (non-null 'Float)})
 
-;; coll? (one-of [(map simple simple)
-;;                (list simple)
-;;                (vector simple)
-;;                (set simple)])
-(defmethod accept-spec 'clojure.core/coll? [_ _ _ _] {:type "object"})
-
-;; empty? (elements [nil '() [] {} #{}])
-(defmethod accept-spec 'clojure.core/empty? [_ _ _ _] {:type "array" :maxItems 0 :minItems 0})
-
-;; associative? (one-of [(map simple simple) (vector simple)])
-(defmethod accept-spec 'clojure.core/associative? [_ _ _ _] {:type "object"})
-
-;; sequential? (one-of [(list simple) (vector simple)])
-(defmethod accept-spec 'clojure.core/sequential? [_ _ _ _] {:type "array"})
-
 ;; ratio? (such-that ratio? (ratio))
 (defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'Int)})
 
@@ -185,54 +168,49 @@
 (defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'String)})
 
 (defmethod accept-spec ::visitor/set [dispatch spec children _]
-  {:enum/values children
-   :enum/name (st/spec-name spec)})
+  (if-let [n (st/spec-name spec)]
+    (do
+      (swap! *context* assoc-in [:enums (clj-name->gql-name n)] {:values children})
+      {:type (non-null (clj-name->gql-name n))})
+    (throw (Exception. (str "Encountered a set with no name: " children "\nEnsure sets are not wrapped (with `nilable` etc)")))))
 
-(defn title->object-name
-  [t]
-  (-> t ;; TODO GraphQL doesn't support namespaces so we don't really need to yet
-      (name)
-      (csk/->snake_case)
-      (keyword)))
+(defn remove-non-null
+  [f]
+  (walk/postwalk
+   (fn [x]
+     (if (and (seq? x) (= (first x) 'non-null))
+       (second x)
+       x)) f))
 
-(s/def :enum/values (s/coll-of any?))
-(s/def :enum/name keyword?)
-(s/def ::enum
-  (s/keys :req [:enum/values
-                :enum/name]))
-
-(defn extract-enums
-  [fields]
-  (let [enums (atom {})]
-    (merge {:fields (walk/postwalk
-                     (fn [x]
-                       #_(println x)
-                       (if (and (map? x)
-                                (s/valid? ::enum x))
-                         (let [n (:enum/name x)]
-                           (swap! enums assoc (title->object-name n) {:values (:enum/values x)})
-                           (non-null (title->object-name n)))
-                         x)) fields)}
-           (when (not-empty @enums)
-             {:enums @enums}))))
+(defn make-optional-fields
+  [fields opt opt-un]
+  (let [opts (set (map clj-name->qualified-gql-name opt))
+        opt-uns (set (map clj-name->gql-name opt-un))]
+    (reduce-kv (fn [a k v]
+                 (assoc a k
+                        (if (or (contains? opts k)
+                                (contains? opt-uns k))
+                          (remove-non-null v)
+                          v))) {} fields)))
 
 (defmethod accept-spec 'clojure.spec.alpha/keys [_ spec children _]
   (let [{:keys [req req-un opt opt-un]} (impl/parse-keys (impl/extract-form spec))
-        names-un (map title->object-name (concat req-un opt-un))
-        names (map (comp title->object-name impl/qualified-name) (concat req opt))
+        names-un (map clj-name->gql-name (concat req-un opt-un))
+        names (map (comp clj-name->qualified-gql-name impl/qualified-name) (concat req opt))
         title (st/spec-name spec)
-        {:keys [enums fields]} (extract-enums (zipmap (concat names names-un) children))]
-    (merge {:objects (hash-map (title->object-name title)
+        fields (zipmap (concat names names-un) children)
+        enums (get @*context* :enums)]
+    (merge {:objects (hash-map (clj-name->gql-name title)
                                (merge
-                                 {:fields fields}))}
+                                 {:fields (make-optional-fields fields opt opt-un)}))}
            (when enums
              {:enums enums}))))
 
 (defmethod accept-spec 'clojure.spec.alpha/or [_ _ children _]
-  {:anyOf children})
+  (throw (Exception. "GraphQL cannot represent OR logic")))
 
 (defmethod accept-spec 'clojure.spec.alpha/and [_ _ children _]
-  (simplify-all-of {:allOf children}))
+  (throw (Exception. "GraphQL cannot represent AND logic")))
 
 (defmethod accept-spec 'clojure.spec.alpha/merge [_ _ children _]
   {:type "object"
@@ -262,43 +240,38 @@
   (hash-map (st/spec-name spec) {:additionalProperties (second children)}))
 
 (defmethod accept-spec ::visitor/set-of [_ _ children _]
-  {:type "array", :items (impl/unwrap children), :uniqueItems true})
+  (list (impl/unwrap children) true))
 
 (defmethod accept-spec ::visitor/vector-of [_ _ children _]
-  (list (impl/unwrap children)))
+  (list (impl/unwrap children) true))
 
 (defmethod accept-spec 'clojure.spec.alpha/* [_ _ children _]
-  {:type "array" :items (impl/unwrap children)})
+  (list (impl/unwrap children) true))
 
 (defmethod accept-spec 'clojure.spec.alpha/+ [_ _ children _]
-  {:type "array" :items (impl/unwrap children) :minItems 1})
+  (list (impl/unwrap children) true))
 
 (defmethod accept-spec 'clojure.spec.alpha/? [_ _ children _]
-  {:type "array" :items (impl/unwrap children) :minItems 0})
+  (list (impl/unwrap children) true))
 
 (defmethod accept-spec 'clojure.spec.alpha/alt [_ _ children _]
-  {:anyOf children})
+  (throw (Exception. "GraphQL cannot represent OR/ALT logic")))
 
 (defmethod accept-spec 'clojure.spec.alpha/cat [_ _ children _]
-  {:type "array"
-   :items {:anyOf children}})
+  (list (impl/unwrap children) true))
 
 ;; &
 
 (defmethod accept-spec 'clojure.spec.alpha/tuple [_ _ children _]
-  {:type "array"
-   :items children})
+  (list (impl/unwrap children) true))
 
 ;; keys*
 
 (defmethod accept-spec 'clojure.spec.alpha/nilable [_ _ children _]
-  {:oneOf [(impl/unwrap children) {:type "null"}]})
+  ;; no nothing; `non-null` is controlled by req/req-un/opt/opt-un
+  (impl/unwrap children))
 
-;;; this is just a function in clojure.spec?
-(defmethod accept-spec 'clojure.spec.alpha/int-in-range? [_ spec _ _]
-  (let [[_ minimum maximum _] (impl/strip-fn-if-needed spec)]
-    {:minimum minimum :maximum maximum}))
-
+;; ???
 (defmethod accept-spec ::visitor/spec [_ spec children _]
   (let [[_ data] (impl/extract-form spec)
         name (st/spec-name spec)
@@ -309,5 +282,5 @@
                          (assoc :title (impl/qualified-name name))))]
     (merge (impl/unwrap children) extra-info json-schema-meta)))
 
-(defmethod accept-spec ::default [_ _ _ _]
-  {})
+(defmethod accept-spec ::default [_ spec _ _]
+  (throw (Exception. (str "Couldn't create a GraphQL schema entry for " spec))))
