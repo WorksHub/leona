@@ -44,13 +44,6 @@
 
 (def ^:dynamic *context* nil)
 
-(defn transform
-  ([spec]
-   (transform spec nil))
-  ([spec options]
-   (binding [*context* (atom {})]
-     (visitor/visit spec accept-spec options))))
-
 (defn non-null
   [t]
   (cons 'non-null [t]))
@@ -60,9 +53,45 @@
    (list t true))
   ([t nn?]
    (if (and (map? t) (contains? t :type))
-
      {:type (non-null (cons 'list [(:type t)]))}
      {:type (non-null (cons 'list [t]))})))
+
+
+(defn- extract-objects
+  [a schema]
+  (walk/postwalk
+   (fn [d]
+     (cond
+       (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
+       (update (second d) :type non-null)
+       ;;
+       (and (map? d) (contains? d :objects))
+       (let [k (-> d :objects keys first)]
+         (swap! a assoc k (get-in d [:objects k]))
+         {:type (-> d :objects keys first)})
+       ;;
+       :else
+       d))
+   schema))
+
+(defn fix-references
+  [schema]
+  (let [new-objects (atom {})]
+    (-> schema
+        (update :objects (partial extract-objects new-objects))
+        (update :objects merge @new-objects))))
+
+(defn transform
+  ([spec]
+   (transform spec nil))
+  ([spec options]
+   (binding [*context* (atom {})]
+     (let [result (visitor/visit spec accept-spec options)]
+       (if (contains? @*context* :fails)
+         (throw (Exception. (str"The following specs could not be transformed: " (clojure.string/join ", " (:fails @*context*)))))
+         (-> result
+             (second) ;; remove outer `non-null`
+             (fix-references)))))))
 
 ;; any? (one-of [(return nil) (any-printable)])
 (defmethod accept-spec 'clojure.core/any? [_ _ _ _] {})
@@ -200,17 +229,19 @@
         title (st/spec-name spec)
         fields (zipmap (concat names names-un) children)
         enums (get @*context* :enums)]
-    (merge {:objects (hash-map (clj-name->gql-name title)
-                               (merge
-                                 {:fields (make-optional-fields fields opt opt-un)}))}
-           (when enums
-             {:enums enums}))))
+    (non-null (merge {:objects (hash-map (clj-name->gql-name title)
+                                         (merge
+                                           {:fields (make-optional-fields fields opt opt-un)}))}
+                     (when enums
+                       {:enums enums})))))
 
 (defmethod accept-spec 'clojure.spec.alpha/or [_ _ children _]
   (throw (Exception. "GraphQL cannot represent OR logic")))
 
-(defmethod accept-spec 'clojure.spec.alpha/and [_ _ children _]
-  (throw (Exception. "GraphQL cannot represent AND logic")))
+(defmethod accept-spec 'clojure.spec.alpha/and [_ spec children _]
+  (if-let [t (some #(when (not= ::invalid %) %) children)]
+    t
+    (throw (Exception. (str "Error: 'and' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
 
 (defmethod accept-spec 'clojure.spec.alpha/merge [_ _ children _]
   {:type "object"
@@ -283,4 +314,13 @@
     (merge (impl/unwrap children) extra-info json-schema-meta)))
 
 (defmethod accept-spec ::default [_ spec _ _]
-  (throw (Exception. (str "Couldn't create a GraphQL schema entry for " spec))))
+  (when spec
+    (swap! *context* update :fails conj spec)
+    ::invalid))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn combine
+  [& specs]
+  (apply merge-with merge (map transform specs)))

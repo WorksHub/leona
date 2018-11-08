@@ -1,68 +1,40 @@
 (ns leona.core
+  (:refer-clojure :exclude [compile])
   (:require [clojure.spec.alpha :as s]
             [com.walmartlabs.lacinia.schema :as schema]
-            [leona.lacinia.schema :refer [transform]]))
+            [leona.lacinia.schema :as leona-schema]))
 
-(s/def ::primary-functions (s/coll-of string?))
-(s/def ::home-planet string?)
-(s/def ::id int?)
-(s/def ::ids (s/coll-of ::id))
-(s/def ::name string?)
-(s/def ::episode #{:NEWHOPE :EMPIRE :JEDI})
-(s/def ::appears-in (s/coll-of ::episode))
+(s/def :leona.pcd/query-spec keyword?)
+(s/def :leona.pcd/resolver fn?)
+(s/def :leona.pcd/query (s/keys :req [:leona.pcd/resolver
+                                      :leona.pcd/query-spec]))
+(s/def :leona.pcd/specs (s/coll-of keyword? :kind set))
+(s/def :leona.pcd/queries (s/map-of keyword? :leona.pcd/query))
+(s/def :leona/pre-compiled-data (s/keys :req [:leona.pcd/specs
+                                              :leona.pcd/queries]))
 
-(s/def ::droid (s/keys :req-un [::primary-functions
-                                ::id
-                                ::name
-                                ::appears-in]
-                       :opt-un [::ids]))
+(defn create [] {:specs #{}
+                 :queries {}})
 
-(s/def ::human (s/keys
-                :req [::home-planet
-                      ::id
-                      ::ids
-                      ::name
-                      ::appears-in]
-                :opt [::episode]))
+(defn attach-query
+  ([m resolver]
+   ;; infer specs from fdef
+   )
+  ([m query-spec resolver results-spec]
+   {:pre [(s/explain-data :leona/pre-compiled-data m)]}
+   (-> m
+       (update :specs conj results-spec)
+       (update :queries assoc results-spec {:resolver resolver
+                                            :query-spec query-spec}))))
 
-(defn create-schema! [] {:query-specs #{}})
+(defn generate
+  [m]
+  {:pre [(s/explain-data :leona/pre-compiled-data m)]}
+  (-> (apply leona-schema/combine (:specs m))
+      (update :queries WIP)))
 
-(defn attach-query!
-  [spec query])
-
-(defn generate-schema!
-  [])
-
-#_(-> (create-schema!)
-      (attach-query! ::droid
-                     (fn [ctx query value])))
-
-#_(generate-schema!)
-
-"
-{:enums
- {:episode
-  {:description \"The episodes of the original Star Wars trilogy.\"
-:values [:NEWHOPE :EMPIRE :JEDI]}}
-
- :objects
- {:droid
-  {:fields {:primary_functions {:type (list String)}
-            :id {:type Int}
-            :name {:type String}
-            :appears_in {:type (list :episode)}}}
-
-  :human
-  {:fields {:id {:type Int}
-            :name {:type String}
-            :home_planet {:type String}
-            :appears_in {:type (list :episode)}}}}
-
- :queries
- {:hero {:type (non-null :human)
-         :args {:episode {:type :episode}}
-         :resolve :get-hero}
-  :droid {:type :droid
-          :args {:id {:type String :default-value "2001"}}
-          :resolve :get-droid}}}
-"
+(defn compile
+  [m]
+  (-> m
+      (generate)
+      (schema/compile)))
