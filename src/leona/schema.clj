@@ -1,40 +1,13 @@
-(ns leona.lacinia.schema
+(ns leona.schema
   (:refer-clojure :exclude [list])
-  (:require [camel-snake-kebab.core :as csk]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.walk :as walk]
+            [leona.util :as util]
             [spec-tools.core :as st]
             [spec-tools.impl :as impl]
             [spec-tools.parse :as parse]
             [spec-tools.visitor :as visitor]))
-
-(defn qualified-gql-name->clj-name
-  [t]
-  (-> t
-      (name)
-      (str/replace #"___" "/")
-      (str/replace #"__" ".")
-      (csk/->kebab-case)
-      (keyword)))
-
-(defn clj-name->gql-name
-  [t]
-  (-> t
-      (name)
-      (csk/->snake_case)
-      (keyword)))
-
-(defn clj-name->qualified-gql-name
-  [t]
-  (let [t (if (str/starts-with? (str t) ":")
-            (-> t str (subs 1))
-            (str t))]
-    (-> t
-        (csk/->snake_case)
-        (str/replace #"\." "__")
-        (str/replace #"\/" "___")
-        (keyword))))
 
 (defn- only-entry? [key a-map] (= [key] (keys a-map)))
 
@@ -56,6 +29,14 @@
      {:type (non-null (cons 'list [(:type t)]))}
      {:type (non-null (cons 'list [t]))})))
 
+(defn has-invalid-key?
+  [m]
+  (some (fn [[k v]]
+          (cond
+            (= ::invalid v) true
+            (map? v) (has-invalid-key? v)
+            :else false))
+        m))
 
 (defn- extract-objects
   [a schema]
@@ -87,8 +68,8 @@
   ([spec options]
    (binding [*context* (atom {})]
      (let [result (visitor/visit spec accept-spec options)]
-       (if (contains? @*context* :fails)
-         (throw (Exception. (str"The following specs could not be transformed: " (clojure.string/join ", " (:fails @*context*)))))
+       (if (has-invalid-key? (second result))
+         (throw (Exception. (str "Spec could not be transformed."))) ;; TODO improve this error
          (-> result
              (second) ;; remove outer `non-null`
              (fix-references)))))))
@@ -199,8 +180,8 @@
 (defmethod accept-spec ::visitor/set [dispatch spec children _]
   (if-let [n (st/spec-name spec)]
     (do
-      (swap! *context* assoc-in [:enums (clj-name->gql-name n)] {:values children})
-      {:type (non-null (clj-name->gql-name n))})
+      (swap! *context* assoc-in [:enums (util/clj-name->gql-name n)] {:values children})
+      {:type (non-null (util/clj-name->gql-name n))})
     (throw (Exception. (str "Encountered a set with no name: " children "\nEnsure sets are not wrapped (with `nilable` etc)")))))
 
 (defn remove-non-null
@@ -213,8 +194,8 @@
 
 (defn make-optional-fields
   [fields opt opt-un]
-  (let [opts (set (map clj-name->qualified-gql-name opt))
-        opt-uns (set (map clj-name->gql-name opt-un))]
+  (let [opts (set (map util/clj-name->qualified-gql-name opt))
+        opt-uns (set (map util/clj-name->gql-name opt-un))]
     (reduce-kv (fn [a k v]
                  (assoc a k
                         (if (or (contains? opts k)
@@ -224,12 +205,12 @@
 
 (defmethod accept-spec 'clojure.spec.alpha/keys [_ spec children _]
   (let [{:keys [req req-un opt opt-un]} (impl/parse-keys (impl/extract-form spec))
-        names-un (map clj-name->gql-name (concat req-un opt-un))
-        names (map (comp clj-name->qualified-gql-name impl/qualified-name) (concat req opt))
+        names-un (map util/clj-name->gql-name (concat req-un opt-un))
+        names (map (comp util/clj-name->qualified-gql-name impl/qualified-name) (concat req opt))
         title (st/spec-name spec)
         fields (zipmap (concat names names-un) children)
         enums (get @*context* :enums)]
-    (non-null (merge {:objects (hash-map (clj-name->gql-name title)
+    (non-null (merge {:objects (hash-map (util/clj-name->gql-name title)
                                          (merge
                                            {:fields (make-optional-fields fields opt opt-un)}))}
                      (when enums
@@ -314,9 +295,7 @@
     (merge (impl/unwrap children) extra-info json-schema-meta)))
 
 (defmethod accept-spec ::default [_ spec _ _]
-  (when spec
-    (swap! *context* update :fails conj spec)
-    ::invalid))
+  (when spec ::invalid))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

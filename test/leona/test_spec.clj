@@ -4,9 +4,9 @@
 
 (s/def ::primary-functions (s/coll-of string?))
 (s/def ::home-planet string?)
-(s/def ::id int?)
-(s/def ::ids (s/coll-of ::id))
+(s/def ::id (s/and int? odd?))
 (s/def ::name string?)
+(s/def ::operational? boolean?)
 (s/def ::episode #{:NEWHOPE :EMPIRE :JEDI})
 (s/def ::appears-in (s/coll-of ::episode))
 
@@ -14,12 +14,14 @@
                                 ::id
                                 ::name
                                 ::appears-in]
-                       :opt-un [::ids]))
+                       :opt-un [::operational?]))
+
+(s/def ::droid-query (s/keys :req-un [::id]
+                             :opt-un [::name]))
 
 (s/def ::human (s/keys
-               :req-un [::home-planet
-                        ::id
-                        ::ids
-                        ::name
-                        ::appears-in]
-               :opt-un [::episode]))
+                :req-un [::home-planet
+                         ::id
+                         ::name
+                         ::appears-in]
+                :opt-un [::episode]))

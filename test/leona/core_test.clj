@@ -1,10 +1,9 @@
 (ns leona.core-test
   (:require [clojure.spec.alpha :as s]
             [clojure.test :refer :all]
-            [com.walmartlabs.lacinia :refer [execute]]
             [com.walmartlabs.lacinia.schema :as lacinia-schema]
             [leona.core :as leona]
-            [leona.lacinia.schema :as leona-schema]
+            [leona.schema :as leona-schema]
             [leona.test-spec :as test]))
 
 (deftest external-compile-test
@@ -19,21 +18,39 @@
            {:specs #{::test/droid}
             :queries {::test/droid droid-resolver}}))))
 
-(deftest generate
+(defn droid-resolver
+  [ctx query value]
+  (when (= 1001 (:id query))
+    {:primary-functions ["courier" "fixer"]
+     :id 1001
+     :name "R2D2"
+     :appears-in [:NEWHOPE :EMPIRE :JEDI]
+     :operational? true}))
 
-  (let [droid-resolver (fn [ctx query value])]
-    (println (-> (leona/create)
-                 (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
-                 (leona/generate))
-             )))
+(deftest generate-test
+  (is (= {:droid
+          {:type :droid,
+           :args {:id {:type '(non-null Int)},
+                  :name {:type 'String}}
+           :resolve droid-resolver}}
+         (-> (leona/create)
+             (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
+             (leona/generate)
+             :queries))))
 
 (deftest query-test
-  (let [droid-resolver (fn [ctx query value])
-        compiled-schema (-> (leona/create)
+  (let [compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
-                            ;;(leona/attach-query `human-resolver)
                             (leona/compile))
-        result 123 #_(execute compiled-schema
-                              "query { human(id: \"1001\") { name }}"
-                              nil nil)]
-    (println result)))
+        result (execute compiled-schema "query { droid(id: \"1001\") { name }}" nil nil)]
+    (is (= "R2D2" (get-in result [:data :droid :name])))))
+
+(deftest middleware-test
+  (let [auth-fn (fn [ctx query value handler]
+                  (handler ctx query value))
+        result (-> (leona/create)
+                   (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
+                   (leona/attach-middleware auth-fn)
+                   (leona/compile)
+                   (leona/execute "query { droid(id: \"1001\") { name }}"))]
+    (is (= "R2D2" (get-in result [:data :droid :name])))))

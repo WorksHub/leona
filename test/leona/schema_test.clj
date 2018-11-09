@@ -1,8 +1,10 @@
 (ns leona.schema-test
   (:require  [clojure.spec.alpha :as s]
              [clojure.test :refer :all]
-             [leona.lacinia.schema :as schema]
-             [leona.test-spec :as test]))
+             [leona.core :as leona]
+             [leona.schema :as schema]
+             [leona.test-spec :as test]
+             [leona.util :as util]))
 
 (deftest fix-references-test
   (let [s {:objects {:test {:fields {:b {:objects {:b {:fields {:a {:type '(non-null Int)}}}}},
@@ -19,13 +21,13 @@
   (s/def ::a int?)
   (s/def ::test (s/keys :req [::a]))
   (is (= (schema/transform ::test)
-         {:objects {:test {:fields {(schema/clj-name->qualified-gql-name ::a) {:type '(non-null Int)}}}}})))
+         {:objects {:test {:fields {(util/clj-name->qualified-gql-name ::a) {:type '(non-null Int)}}}}})))
 
 (deftest schema-req-with-nilable-test
   (s/def ::a (s/nilable int?))
   (s/def ::test (s/keys :req [::a]))
   (is (= (schema/transform ::test)
-         {:objects {:test {:fields {(schema/clj-name->qualified-gql-name ::a) {:type '(non-null Int)}}}}})))
+         {:objects {:test {:fields {(util/clj-name->qualified-gql-name ::a) {:type '(non-null Int)}}}}})))
 
 (deftest schema-req-un-test
   (s/def ::a string?)
@@ -43,13 +45,13 @@
   (s/def ::a int?)
   (s/def ::test (s/keys :opt [::a]))
   (is (= (schema/transform ::test)
-         {:objects {:test {:fields {(schema/clj-name->qualified-gql-name ::a) {:type 'Int}}}}})))
+         {:objects {:test {:fields {(util/clj-name->qualified-gql-name ::a) {:type 'Int}}}}})))
 
 (deftest schema-opt-with-nilable-test
   (s/def ::a (s/nilable int?))
   (s/def ::test (s/keys :opt [::a]))
   (is (= (schema/transform ::test)
-         {:objects {:test {:fields {(schema/clj-name->qualified-gql-name ::a) {:type 'Int}}}}})))
+         {:objects {:test {:fields {(util/clj-name->qualified-gql-name ::a) {:type 'Int}}}}})))
 
 (deftest schema-opt-un-test
   (s/def ::a string?)
@@ -141,8 +143,16 @@
 (deftest schema-exception-test
   (s/def ::a map?)
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (thrown-with-msg? Exception #"The following specs could not be transformed: :leona.schema-test/a"
+  (is (thrown-with-msg? Exception #"Spec could not be transformed"
                         (schema/transform ::test))))
+
+(deftest has-invalid-key?-test
+  (is (schema/has-invalid-key? {:a :leona.schema/invalid}))
+  (is (schema/has-invalid-key? {:a {:b :leona.schema/invalid}}))
+  (is (schema/has-invalid-key? {:a {:b {:c 1 :d :leona.schema/invalid}}}))
+  (is (not (schema/has-invalid-key? {:a 1})))
+  (is (not (schema/has-invalid-key? {:a [:leona.schema/invalid]})))
+  (is (not (schema/has-invalid-key? {:leona.schema/invalid 1}))))
 
 (def result
   {:objects
@@ -150,7 +160,6 @@
     {:fields
      {:home_planet {:type '(non-null String)},
       :id {:type '(non-null Int)},
-      :ids {:type '(non-null (list (non-null Int)))},
       :name {:type '(non-null String)},
       :appears_in {:type '(non-null (list (non-null :episode)))},
       :episode {:type :episode}}},
@@ -160,7 +169,7 @@
       :id {:type '(non-null Int)},
       :name {:type '(non-null String)},
       :appears_in {:type '(non-null (list (non-null :episode)))},
-      :ids {:type '(list Int)}}}},
+      :operational_QMARK_ {:type 'Boolean}}}},
    :enums {:episode {:values [:EMPIRE :NEWHOPE :JEDI]}}})
 
 (deftest comprehensive-schema-test
