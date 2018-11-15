@@ -8,6 +8,12 @@
       (str/replace #"\?" "_QMARK_")
       (str/replace #"!" "_XMARK_")))
 
+(defn replace-placeholders
+  [s]
+  (-> s
+      (str/replace #"_QMARK_" "?")
+      (str/replace #"_XMARK_" "!")))
+
 (defn clj-name->gql-name
   [t]
   (-> t

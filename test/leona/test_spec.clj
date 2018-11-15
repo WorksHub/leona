@@ -17,7 +17,7 @@
                        :opt-un [::operational?]))
 
 (s/def ::droid-query (s/keys :req-un [::id]
-                             :opt-un [::name]))
+                             :opt-un [::appears-in]))
 
 (s/def ::human (s/keys
                 :req-un [::home-planet
