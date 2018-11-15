@@ -35,7 +35,7 @@
   (is (= {:droid
           {:type :droid,
            :args {:id {:type '(non-null Int)},
-                  :name {:type 'String}}}}
+                  :appears_in {:type '(list :episode)}}}}
          (-> (leona/create)
              (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
              (leona/generate)
