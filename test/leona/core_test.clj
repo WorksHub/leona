@@ -11,14 +11,20 @@
                                 ::test/droid)
           (lacinia-schema/compile))))
 
-(deftest create
-  (let [droid-resolver (fn [ctx query value])]
+(deftest create-test
+  (let [droid-resolver (fn [ctx query value])
+        droid-mutator  (fn [ctx query value])
+        middleware     (fn [handler ctx query value])]
     (is (= {:specs #{::test/droid}
-            :middleware []
+            :middleware [middleware]
             :queries {::test/droid {:resolver droid-resolver
-                                    :query-spec ::test/droid-query}}}
+                                    :query-spec ::test/droid-query}}
+            :mutations {::test/droid {:resolver droid-mutator
+                                      :mutation-spec ::test/droid-mutation}}}
            (-> (leona/create)
-               (leona/attach-query ::test/droid-query droid-resolver ::test/droid))))))
+               (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
+               (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+               (leona/attach-middleware middleware))))))
 
 (defn droid-resolver
   [ctx query value]
@@ -31,7 +37,15 @@
     1003 {:foo "bar"}
     nil))
 
-(deftest generate-test
+(defn droid-mutator
+  [ctx query value]
+  {:primary-functions ["courier" "fixer"]
+   :id 1001
+   :name "R2D2"
+   :appears-in [:NEWHOPE :EMPIRE :JEDI]
+   :operational? true})
+
+(deftest generate-query-test
   (is (= {:droid
           {:type :droid,
            :args {:id {:type '(non-null Int)},
@@ -41,6 +55,17 @@
              (leona/generate)
              :queries
              (update :droid dissoc :resolve))))) ;; remove resolver because it gets wrapped
+
+(deftest generate-mutation-test
+  (is (= {:droid
+          {:type :droid,
+           :args {:id {:type '(non-null Int)},
+                  :primary_functions {:type '(list String)}}}}
+         (-> (leona/create)
+             (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+             (leona/generate)
+             :mutations
+             (update :droid dissoc :resolve)))))
 
 (deftest query-valid-test
   (let [compiled-schema (-> (leona/create)
@@ -73,7 +98,44 @@
                             (leona/compile))
         result (leona/execute compiled-schema "query { droid(id: 1003) { name }}")]
     (is (:errors result))
-    (is (= :invalid-result (-> result :errors first :extensions :key)))))
+    (is (= :invalid-query-result (-> result :errors first :extensions :key)))))
+
+;;;;;;;
+
+(deftest mutation-valid-test
+  (let [compiled-schema (-> (leona/create)
+                            (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+                            (leona/compile))
+        result (leona/execute compiled-schema "mutation { droid(id: 1001, appears_in: NEWHOPE) { name, operational_QMARK_, appears_in }}")] ;; id is odd
+    (is (= "R2D2" (get-in result [:data :droid :name])))
+    (is (= true   (get-in result [:data :droid :operational_QMARK_])))
+    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid :appears_in])))))
+
+(deftest mutation-invalid-gql-test
+  (let [compiled-schema (-> (leona/create)
+                            (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+                            (leona/compile))
+        result (leona/execute compiled-schema "mutation { droid(id: \"hello\") { name }}")] ;; id is NaN
+    (is (:errors result))
+    (is (= {:field :droid :argument :id :value "hello" :type-name :Int} (-> result :errors first :extensions)))))
+
+(deftest mutation-invalid-mutation-spec-test
+  (let [compiled-schema (-> (leona/create)
+                            (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+                            (leona/compile))
+        result (leona/execute compiled-schema "mutation { droid(id: 1002) { name }}")] ;; id is even
+    (is (:errors result))
+    (is (= :invalid-mutation (-> result :errors first :extensions :key)))))
+
+(deftest mutation-invalid-result-spec-test
+  (let [compiled-schema (-> (leona/create)
+                            (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+                            (leona/compile))
+        result (leona/execute compiled-schema "mutation { droid(id: 1003) { name }}")]
+    (is (:errors result))
+    (is (= :invalid-mutation-result (-> result :errors first :extensions :key)))))
+
+;;;;;
 
 (deftest middleware-test
   (let [test-atom (atom 10)

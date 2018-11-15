@@ -12,14 +12,19 @@
             [leona.util :as util]))
 
 (s/def ::query-spec keyword?)
+(s/def ::mutation-spec keyword?)
 (s/def ::resolver fn?)
 (s/def ::query (s/keys :req-un [::resolver
                                 ::query-spec]))
+(s/def ::mutation (s/keys :req-un [::resolver
+                                   ::mutation-spec]))
 (s/def ::middleware (s/coll-of fn? :kind set))
 (s/def ::specs (s/coll-of keyword? :kind set))
 (s/def ::queries (s/map-of keyword? ::query))
+(s/def ::mutations (s/map-of keyword? ::mutation))
 (s/def ::pre-compiled-data (s/keys :req-un [::specs
                                             ::queries
+                                            ::mutations
                                             ::middleware]))
 (s/def ::compiled map?)
 (s/def ::compiled-data (s/keys :req-un [::compiled
@@ -42,7 +47,7 @@
          csk/->snake_case
          name) m))
 
-(defn format-query
+(defn format-input
   [m]
   (cske/transform-keys
    (comp keyword
@@ -51,25 +56,26 @@
          name) m))
 
 (defn wrap-resolver
-  [resolver-fn query-spec output-spec]
-  (fn [ctx query value]
-    (let [formatted-query (format-query query)]
-      (if-not (s/valid? query-spec formatted-query)
-        (error {:key :invalid-query
-                :args (s/explain-data query-spec formatted-query)
-                :message (str "The query didn't conform to the internal spec: " query-spec)})
-        (let [resolver (partial resolver-fn ctx formatted-query value)
-              with-middleware (build-middleware resolver (:middleware ctx) [ctx formatted-query value])
-              result (with-middleware)]
+  [id resolver-fn input-spec result-spec]
+  (fn [ctx input value]
+    (let [formatted-input (format-input input)]
+      (if-not (s/valid? input-spec formatted-input)
+        (error {:key (keyword (str "invalid-" (name id)))
+                :args (s/explain-data input-spec formatted-input)
+                :message (str "The " (name id) " input didn't conform to the internal spec: " input-spec)})
+        (let [resolver (-> (partial resolver-fn ctx formatted-input value)
+                           (build-middleware (:middleware ctx) [ctx formatted-input value]))
+              result (resolver)]
           (cond
             (instance? com.walmartlabs.lacinia.resolve.ResolverResultImpl result) result
-            (s/valid? output-spec result) (format-result result)
-            :else (error {:key :invalid-result
-                          :args (s/explain-data output-spec result)
-                          :message (str "The result didn't conform to the internal spec: " output-spec)})))))))
+            (s/valid? result-spec result) (format-result result)
+            :else (error {:key (keyword (str "invalid-" (name id) "-result"))
+                          :args (s/explain-data result-spec result)
+                          :message (str "The " (name id) " result didn't conform to the internal spec: " result-spec)})))))))
 
 (defn create [] {:specs #{}
                  :queries {}
+                 :mutations {}
                  :middleware []})
 
 (defn attach-middleware
@@ -87,23 +93,34 @@
        (update :queries assoc results-spec {:resolver resolver
                                             :query-spec query-spec}))))
 
-(defn generate-queries
-  [m]
-  {:pre [(s/valid? ::pre-compiled-data m)]}
-  (->> (:queries m)
+(defn attach-mutation
+  ([m resolver]
+   ;; TODO infer specs from fdef
+   )
+  ([m mutation-spec resolver results-spec]
+   {:pre [(s/valid? ::pre-compiled-data m)]}
+   (-> m
+       (update :specs   conj results-spec)
+       (update :mutations assoc results-spec {:resolver resolver
+                                              :mutation-spec mutation-spec}))))
+
+(defn- generate-root-objects
+  [m access-key id]
+  (->> m
        (map (fn [[k v]]
               (hash-map (util/clj-name->gql-name k)
                         {:type (util/clj-name->gql-name k)
-                         :args (get-in (leona-schema/transform (:query-spec v))
-                                       [:objects (util/clj-name->gql-name (:query-spec v)) :fields])
-                         :resolve (wrap-resolver (:resolver v) (:query-spec v) k)})))
+                         :args (get-in (leona-schema/transform (get v access-key))
+                                       [:objects (util/clj-name->gql-name (get v access-key)) :fields])
+                         :resolve (wrap-resolver id (:resolver v) (get v access-key) k)})))
        (apply merge)))
 
 (defn generate
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (-> (apply leona-schema/combine (:specs m))
-      (assoc :queries (generate-queries m))))
+  (cond-> (apply leona-schema/combine (:specs m))
+    (not-empty (:queries m))   (assoc :queries   (generate-root-objects (:queries m)   :query-spec    :query))
+    (not-empty (:mutations m)) (assoc :mutations (generate-root-objects (:mutations m) :mutation-spec :mutation))))
 
 (defn compile
   [m]

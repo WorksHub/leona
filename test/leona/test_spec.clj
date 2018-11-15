@@ -19,6 +19,9 @@
 (s/def ::droid-query (s/keys :req-un [::id]
                              :opt-un [::appears-in]))
 
+(s/def ::droid-mutation (s/keys :req-un [::id]
+                                :opt-un [::primary-functions]))
+
 (s/def ::human (s/keys
                 :req-un [::home-planet
                          ::id

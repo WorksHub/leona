@@ -1,0 +1,8 @@
+- Continue to add spec hints (and, or, etc)
+- Interfaces?
+- Descriptions? (Spec has no meta)
+- Field resolvers in objects and mutations? (Spec has no meta)
+- Default values in queries
+- Mutations!
+
+* Fix tests
