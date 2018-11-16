@@ -48,7 +48,7 @@
        ;;
        (and (map? d) (contains? d :objects))
        (let [k (-> d :objects keys first)
-             ref (some-> (get-in d [:objects k :ref]) name keyword) ;; TODO name+keyword removed qualifications, do we want to do this?
+             ref (some-> (get-in d [:objects k :ref]) util/clj-name->gql-name) ;; TODO removed qualifications, do we want to do this?
              k' (or ref k)]
          (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
          {:type k'})

@@ -23,8 +23,8 @@
                                 ::id
                                 ::name]
                        :req [::appears-in]
-                       :opt [::owner]
-                       :opt-un [::operational?]))
+                       :opt-un [::operational?
+                                ::owner]))
 
 (s/def ::droid-query (s/keys :req-un [::id]
                              :opt [::appears-in]))

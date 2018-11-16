@@ -15,16 +15,19 @@
 (deftest create-test
   (let [droid-resolver (fn [ctx query value])
         droid-mutator  (fn [ctx query value])
+        human-resolver (fn [ctx query value])
         middleware     (fn [handler ctx query value])]
-    (is (= {:specs #{::test/droid}
+    (is (= {:specs #{::test/droid ::test/human}
             :middleware [middleware]
             :queries {::test/droid {:resolver droid-resolver
                                     :query-spec ::test/droid-query}}
             :mutations {::test/droid {:resolver droid-mutator
-                                      :mutation-spec ::test/droid-mutation}}}
+                                      :mutation-spec ::test/droid-mutation}}
+            :field-resolvers {::test/human {:resolver human-resolver}}}
            (-> (leona/create)
                (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
                (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
+               (leona/attach-field-resolver ::test/human human-resolver)
                (leona/attach-middleware middleware))))))
 
 (defn droid-resolver
@@ -171,3 +174,19 @@
                    (leona/execute "query { droid(id: 1001) { name }}"))]
     (is (:errors result))
     (is (= {:key :auth-failed, :arguments {:id "1001"}} (-> result :errors first :extensions)))))
+
+;;;;;;;
+
+(deftest field-resolver-opt-test
+  (let [human {:home-planet "Naboo"
+               :id 123145
+               :name "Jack Solo"
+               :appears-in #{:JEDI}}
+        human-resolver (fn [ctx query value] human)
+        compiled-schema (-> (leona/create)
+                            (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
+                            (leona/attach-field-resolver ::test/human human-resolver)
+                            (leona/compile))
+        result (leona/execute compiled-schema "query { droid(id: 1001) { name, operational_QMARK_, owner {id} }}")]
+    (is (= "R2D2" (get-in result [:data :droid :name])))
+    (is (= (:id human) (get-in result [:data :droid :owner :id])))))
