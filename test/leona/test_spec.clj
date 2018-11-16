@@ -10,21 +10,24 @@
 (s/def ::episode #{:NEWHOPE :EMPIRE :JEDI})
 (s/def ::appears-in (s/coll-of ::episode))
 
-(s/def ::droid (s/keys :req-un [::primary-functions
-                                ::id
-                                ::name
-                                ::appears-in]
-                       :opt-un [::operational?]))
-
-(s/def ::droid-query (s/keys :req-un [::id]
-                             :opt-un [::appears-in]))
-
-(s/def ::droid-mutation (s/keys :req-un [::id]
-                                :opt-un [::primary-functions]))
-
 (s/def ::human (s/keys
                 :req-un [::home-planet
                          ::id
                          ::name
                          ::appears-in]
                 :opt-un [::episode]))
+
+(s/def ::owner ::human)
+
+(s/def ::droid (s/keys :req-un [::primary-functions
+                                ::id
+                                ::name]
+                       :req [::appears-in]
+                       :opt [::owner]
+                       :opt-un [::operational?]))
+
+(s/def ::droid-query (s/keys :req-un [::id]
+                             :opt [::appears-in]))
+
+(s/def ::droid-mutation (s/keys :req-un [::id]
+                                :opt-un [::primary-functions]))

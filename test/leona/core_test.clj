@@ -4,7 +4,8 @@
             [com.walmartlabs.lacinia.schema :as lacinia-schema]
             [leona.core :as leona]
             [leona.schema :as leona-schema]
-            [leona.test-spec :as test]))
+            [leona.test-spec :as test]
+            [leona.util :as util]))
 
 (deftest external-compile-test
   (is (-> (leona-schema/combine ::test/human
@@ -32,24 +33,24 @@
     1001 {:primary-functions ["courier" "fixer"]
           :id 1001
           :name "R2D2"
-          :appears-in [:NEWHOPE :EMPIRE :JEDI]
+          ::test/appears-in [:NEWHOPE :EMPIRE :JEDI]
           :operational? true}
     1003 {:foo "bar"}
     nil))
 
 (defn droid-mutator
-  [ctx query value]
-  {:primary-functions ["courier" "fixer"]
+  [ctx {:keys [primary-functions]} value]
+  {:primary-functions primary-functions
    :id 1001
    :name "R2D2"
-   :appears-in [:NEWHOPE :EMPIRE :JEDI]
+   ::test/appears-in [:NEWHOPE :EMPIRE :JEDI]
    :operational? true})
 
 (deftest generate-query-test
   (is (= {:droid
           {:type :droid,
            :args {:id {:type '(non-null Int)},
-                  :appears_in {:type '(list :episode)}}}}
+                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :episode)}}}}
          (-> (leona/create)
              (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
              (leona/generate)
@@ -68,13 +69,17 @@
              (update :droid dissoc :resolve)))))
 
 (deftest query-valid-test
-  (let [compiled-schema (-> (leona/create)
+  (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
+        compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query droid-resolver ::test/droid)
                             (leona/compile))
-        result (leona/execute compiled-schema "query { droid(id: 1001, appears_in: NEWHOPE) { name, operational_QMARK_, appears_in }}")] ;; id is odd
+        result (leona/execute compiled-schema
+                              (format "query { droid(id: 1001, %s: NEWHOPE) { name, operational_QMARK_, %s }}"
+                                      appears-in-str
+                                      appears-in-str))]
     (is (= "R2D2" (get-in result [:data :droid :name])))
-    (is (= true   (get-in result [:data :droid :operational_QMARK_])))
-    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid :appears_in])))))
+    (is (= true (get-in result [:data :droid :operational_QMARK_])))
+    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
 
 (deftest query-invalid-gql-test
   (let [compiled-schema (-> (leona/create)
@@ -103,13 +108,15 @@
 ;;;;;;;
 
 (deftest mutation-valid-test
-  (let [compiled-schema (-> (leona/create)
+  (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
+        compiled-schema (-> (leona/create)
                             (leona/attach-mutation ::test/droid-mutation droid-mutator ::test/droid)
                             (leona/compile))
-        result (leona/execute compiled-schema "mutation { droid(id: 1001, appears_in: NEWHOPE) { name, operational_QMARK_, appears_in }}")] ;; id is odd
-    (is (= "R2D2" (get-in result [:data :droid :name])))
-    (is (= true   (get-in result [:data :droid :operational_QMARK_])))
-    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid :appears_in])))))
+        result (leona/execute compiled-schema
+                              "mutation { droid(id: 1001, primary_functions: [\"beep\"]) { name, operational_QMARK_, primary_functions }}")]
+    (is (= "R2D2"   (get-in result [:data :droid :name])))
+    (is (= true     (get-in result [:data :droid :operational_QMARK_])))
+    (is (= ["beep"] (get-in result [:data :droid :primary_functions])))))
 
 (deftest mutation-invalid-gql-test
   (let [compiled-schema (-> (leona/create)

@@ -47,9 +47,11 @@
        (update (second d) :type non-null)
        ;;
        (and (map? d) (contains? d :objects))
-       (let [k (-> d :objects keys first)]
-         (swap! a assoc k (get-in d [:objects k]))
-         {:type (-> d :objects keys first)})
+       (let [k (-> d :objects keys first)
+             ref (some-> (get-in d [:objects k :ref]) name keyword) ;; TODO name+keyword removed qualifications, do we want to do this?
+             k' (or ref k)]
+         (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
+         {:type k'})
        ;;
        :else
        d))
@@ -60,7 +62,7 @@
   (let [new-objects (atom {})]
     (-> schema
         (update :objects (partial extract-objects new-objects))
-        (update :objects merge @new-objects))))
+        (update :objects #(merge @new-objects %)))))
 
 (defn transform
   ([spec]
@@ -193,15 +195,26 @@
        x)) f))
 
 (defn make-optional-fields
-  [fields opt opt-un]
-  (let [opts (set (map util/clj-name->qualified-gql-name opt))
-        opt-uns (set (map util/clj-name->gql-name opt-un))]
-    (reduce-kv (fn [a k v]
-                 (assoc a k
-                        (if (or (contains? opts k)
-                                (contains? opt-uns k))
-                          (remove-non-null v)
-                          v))) {} fields)))
+  ([fields spec]
+   (let [{:keys [opt opt-un]} (impl/parse-keys (impl/extract-form spec))]
+     (if (or opt opt-un)
+       (make-optional-fields fields opt opt-un)
+       fields)))
+  ([fields opt opt-un]
+   (let [opts    (set (map util/clj-name->qualified-gql-name opt))
+         opt-uns (set (map util/clj-name->gql-name opt-un))]
+     (reduce-kv (fn [a k v]
+                  (let [contained? (or (contains? opts k)
+                                       (contains? opt-uns k))
+                        object?    (and (= 'non-null (first v))
+                                        (map? (second v))
+                                        (contains? (second v) :objects))]
+                    (assoc a k
+                           (cond
+                             (not contained?) v
+                             object?          (second v)
+                             :else            (remove-non-null v)))))
+                {} fields))))
 
 (defmethod accept-spec 'clojure.spec.alpha/keys [_ spec children _]
   (let [{:keys [req req-un opt opt-un]} (impl/parse-keys (impl/extract-form spec))
@@ -209,10 +222,14 @@
         names (map (comp util/clj-name->qualified-gql-name impl/qualified-name) (concat req opt))
         title (st/spec-name spec)
         fields (zipmap (concat names names-un) children)
-        enums (get @*context* :enums)]
+        enums (get @*context* :enums)
+        spec-ref (s/get-spec spec)]
     (non-null (merge {:objects (hash-map (util/clj-name->gql-name title)
-                                         (merge
-                                           {:fields (make-optional-fields fields opt opt-un)}))}
+                                         (merge {:fields (if (keyword? spec-ref)
+                                                           (make-optional-fields fields spec-ref)
+                                                           (make-optional-fields fields opt opt-un))}
+                                                (when (keyword? spec-ref)
+                                                  {:ref spec-ref})))}
                      (when enums
                        {:enums enums})))))
 

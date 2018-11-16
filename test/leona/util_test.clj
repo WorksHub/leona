@@ -7,6 +7,11 @@
   (is (= "hello_QMARK__QMARK_" (util/replace-punctuation "hello??")))
   (is (= "hello_XMARK_" (util/replace-punctuation "hello!"))))
 
+(deftest replace-placeholders-test
+  (is (= "hello?" (util/replace-placeholders "hello_QMARK_")))
+  (is (= "hello??" (util/replace-placeholders "hello_QMARK__QMARK_")))
+  (is (= "hello!" (util/replace-placeholders "hello_XMARK_"))))
+
 (deftest clj-name->gql-name-test
   (is (= :hello (util/clj-name->gql-name :hello)))
   (is (= :hello (util/clj-name->gql-name ::hello)))

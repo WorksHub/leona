@@ -41,19 +41,11 @@
 
 (defn format-result
   [m]
-  (cske/transform-keys
-   (comp keyword
-         util/replace-punctuation
-         csk/->snake_case
-         name) m))
+  (cske/transform-keys util/clj-name->qualified-gql-name m))
 
 (defn format-input
   [m]
-  (cske/transform-keys
-   (comp keyword
-         csk/->kebab-case
-         util/replace-placeholders
-         name) m))
+  (cske/transform-keys util/gql-name->clj-name m))
 
 (defn wrap-resolver
   [id resolver-fn input-spec result-spec]

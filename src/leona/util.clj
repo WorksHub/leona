@@ -33,3 +33,13 @@
         (str/replace #"\/" "___")
         (replace-punctuation)
         (keyword))))
+
+(defn gql-name->clj-name
+  [t]
+  (-> t
+      (name)
+      (str/replace #"___" "/")
+      (str/replace #"__" ".")
+      (csk/->kebab-case)
+      (replace-placeholders)
+      (keyword)))
