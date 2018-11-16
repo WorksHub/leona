@@ -206,7 +206,8 @@
      (reduce-kv (fn [a k v]
                   (let [contained? (or (contains? opts k)
                                        (contains? opt-uns k))
-                        object?    (and (= 'non-null (first v))
+                        object?    (and (sequential? v)
+                                        (= 'non-null (first v))
                                         (map? (second v))
                                         (contains? (second v) :objects))]
                     (assoc a k
