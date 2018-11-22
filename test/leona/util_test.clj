@@ -23,3 +23,9 @@
   (is (= :leona__util_test___hello (util/clj-name->qualified-gql-name ::hello)))
   (is (= :leona__util_test___hello_QMARK_ (util/clj-name->qualified-gql-name ::hello?)))
   (is (= :leona__util_test___hello_QMARK_ (util/clj-name->qualified-gql-name :leona.util-test/hello?))))
+
+(deftest clj-name->qualified-gql-name-test
+  (is (= :hello (util/gql-name->clj-name :hello)))
+  (is (= (util/gql-name->clj-name :leona__util_test___hello)))
+  (is (= ::hello? (util/gql-name->clj-name :leona__util_test___hello_QMARK_)))
+  (is (= :leona.util-test/hello? (util/gql-name->clj-name :leona__util_test___hello_QMARK_))))

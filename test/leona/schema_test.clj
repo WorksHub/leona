@@ -195,7 +195,7 @@
      {:primary_functions {:type '(non-null (list (non-null String)))},
       :id {:type '(non-null Int)},
       :name {:type '(non-null String)},
-      (util/clj-name->qualified-gql-name ::test/owner)      {:type :human},
+      :owner      {:type :human},
       (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(non-null (list (non-null :episode)))},
       :operational_QMARK_ {:type 'Boolean}}}},
    :enums {:episode {:values [:EMPIRE :NEWHOPE :JEDI]}}})

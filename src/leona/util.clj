@@ -40,6 +40,6 @@
       (name)
       (str/replace #"___" "/")
       (str/replace #"__" ".")
-      (csk/->kebab-case)
       (replace-placeholders)
+      (csk/->kebab-case)
       (keyword)))
