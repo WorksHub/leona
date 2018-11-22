@@ -1,9 +1,15 @@
-- Continue to add spec hints (and, or, etc)
 - Interfaces?
-- Descriptions? (Spec has no meta)
 - Field resolvers in objects and mutations? (Spec has no meta) - separate def
 - Default values in queries
 - Mutations!
 - Custom scalars
 
-* Fix tests
+Issues
+* Interfaces and Unions
+ - More nuanced paers of the GraphQL toolset but allow us to write better queries.
+* Descriptions on Objects
+ - Fields are easy but with objects we lose the spec name.
+* Input Objects
+ - Currently input specs are expanded and each arg is included. Input Objects were included to reduce repetition.
+* Custom Scalars
+ - Date parse/serialize
