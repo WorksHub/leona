@@ -7,4 +7,4 @@
                  [com.walmartlabs/lacinia "0.30.0"]
                  [metosin/spec-tools "0.8.0"]
                  [camel-snake-kebab "0.4.0"]]
-  :profiles {:dev {:dependencies [[aleph "0.4.6"]]}})
+  :profiles {:dev {:dependencies []}})
