@@ -7,4 +7,8 @@
                  [com.walmartlabs/lacinia "0.30.0"]
                  [metosin/spec-tools "0.8.0"]
                  [camel-snake-kebab "0.4.0"]]
-  :profiles {:dev {:dependencies []}})
+  :profiles {:dev {:dependencies []}}
+  :repositories [["releases" {:url "https://clojars.org/repo"
+                              :creds :gpg}]
+                 ["snapshots" {:url "https://clojars.org/repo"
+                               :creds :gpg}]])
