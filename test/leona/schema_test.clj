@@ -16,6 +16,17 @@
                       :d {:fields {:c {:type '(non-null String)}}}}}
            (schema/fix-references s)))))
 
+(deftest valid-enum?-test
+  (is (schema/valid-enum? [:foo :bar :baz]))
+  (is (schema/valid-enum? ["foo" "bar" "baz"]))
+  (is (schema/valid-enum? [:foo_one :bar_two :baz_three]))
+  (is (schema/valid-enum? ["foo_one" "bar_two" "baz_three"]))
+  (is (schema/valid-enum? ["fooOne" "barTwo" "bazThree"]))
+  (is (not (schema/valid-enum? [1 2 3])))
+  (is (not (schema/valid-enum? ["foo one" "bar two" "baz three"])))
+  (is (not (schema/valid-enum? ["foo-one" "bar-two" "baz-three"])))
+  (is (not (schema/valid-enum? [:foo-one :bar-two :baz-three]))))
+
 (deftest valid-replacement-type?-test
   (is (schema/valid-replacement-type? 'String))
   (is (schema/valid-replacement-type? 'Float))

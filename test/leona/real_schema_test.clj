@@ -3,6 +3,7 @@
              [clojure.spec.gen.alpha :as gen]
              [clojure.string :as str]
              [clojure.test :refer :all]
+             [leona.core :as leona]
              [leona.schema :as schema]))
 
 ;; Location
@@ -90,7 +91,7 @@
 (s/def :wh.job/published? boolean?)
 (s/def :wh.job/promoted? boolean?)
 (s/def :wh.job/creation-date inst?)
-(s/def :wh.job/role-type #{"Full time" "Contract" "Intern"})
+(s/def :wh.job/role-type #{"Full_time" "Contract" "Intern"})
 (s/def :wh.job/company :wh/company)
 (s/def :wh.job/salary :wh/salary)
 (s/def :wh.job/location (s/keys :req-un [:wh.location/country]
@@ -118,7 +119,16 @@
                                 :wh.job/tagline
                                 :wh.job/salary]))
 
-(deftest real-test
+(deftest real-schema-test
   (let [r (schema/transform :wh/job)]
     (is r)
-    (is (= #{:location :company :salary :job} (set (keys (:objects r)))))))
+    (is (= #{:location :company :salary :job} (set (keys (:objects r)))))
+    (is (= {:role_type {:values ["Intern" "Contract" "Full_time"]}} (:enums r)))))
+
+(deftest real-compile
+  (s/def ::job-input (s/keys :req-un [:wh.job/id]))
+  (let [job-resolver (fn [c q v])
+        compiled-schema (-> (leona/create)
+                            (leona/attach-query ::job-input job-resolver :wh/job)
+                            (leona/compile))]
+    (is (:compiled compiled-schema))))

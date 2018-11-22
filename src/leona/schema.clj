@@ -1,6 +1,7 @@
 (ns leona.schema
   (:refer-clojure :exclude [list])
-  (:require [clojure.spec.alpha :as s]
+  (:require [camel-snake-kebab.core :as csk]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.walk :as walk]
             [leona.util :as util]
@@ -179,11 +180,19 @@
 ;; bytes? (bytes)
 (defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'String)})
 
+(s/def ::valid-graphql-name #(re-matches #"^[_a-zA-Z][_a-zA-Z0-9]*$" %))
+(defn valid-enum?
+  [es]
+  (every? (fn [e] (and (or (string? e) (keyword? e))
+                       (s/valid? ::valid-graphql-name (name e)))) es))
+
 (defmethod accept-spec ::visitor/set [dispatch spec children _]
   (if-let [n (st/spec-name spec)]
-    (do
-      (swap! *context* assoc-in [:enums (util/clj-name->gql-name n)] {:values children})
-      {:type (non-null (util/clj-name->gql-name n))})
+    (if (valid-enum? children)
+      (do
+        (swap! *context* assoc-in [:enums (util/clj-name->gql-name n)] {:values children})
+        {:type (non-null (util/clj-name->gql-name n))})
+      (throw (Exception. (str "Encountered a set with invalid enum values: " children "\nThey must be GraphQL names: they may contain only letters, numbers, and underscores."))))
     (throw (Exception. (str "Encountered a set with no name: " children "\nEnsure sets are not wrapped (with `nilable` etc)")))))
 
 (defn remove-non-null
