@@ -234,13 +234,19 @@
                      (when enums
                        {:enums enums})))))
 
-(defmethod accept-spec 'clojure.spec.alpha/or [_ _ children _]
-  (throw (Exception. "GraphQL cannot represent OR logic")))
+(defmethod accept-spec 'clojure.spec.alpha/or [_ spec children _]
+  (if-let [t (some #(when (not= ::invalid %) %) children)]
+    t
+    (throw (Exception. (str "Error: 's/or' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
 
 (defmethod accept-spec 'clojure.spec.alpha/and [_ spec children _]
   (if-let [t (some #(when (not= ::invalid %) %) children)]
     t
-    (throw (Exception. (str "Error: 'and' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
+    (throw (Exception. (str "Error: 's/and' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
+
+(defmethod accept-spec 'clojure.spec.alpha/double-in [_ _ _ _] {:type (non-null 'Float)})
+
+(defmethod accept-spec 'clojure.spec.alpha/int-in [_ _ _ _] {:type (non-null 'Int)})
 
 (defmethod accept-spec 'clojure.spec.alpha/merge [_ _ children _]
   {:type "object"
@@ -301,16 +307,24 @@
   ;; no nothing; `non-null` is controlled by req/req-un/opt/opt-un
   (impl/unwrap children))
 
+(s/def ::replacement-types (s/+ #{'String 'Float 'Int 'Boolean 'ID
+                                  'non-null 'list}))
+
+(defn valid-replacement-type?
+  [t]
+  (and t (s/valid? ::replacement-types (flatten [t]))))
+
 ;; ???
 (defmethod accept-spec ::visitor/spec [_ spec children _]
   (let [[_ data] (impl/extract-form spec)
         name (st/spec-name spec)
-        synthetic? (-> spec st/get-spec ::st/synthetic?)
-        json-schema-meta (impl/unlift-keys data "json-schema")
-        extra-info (-> (select-keys data [:description])
-                       (cond-> (and name (not synthetic?))
-                         (assoc :title (impl/qualified-name name))))]
-    (merge (impl/unwrap children) extra-info json-schema-meta)))
+        replacement-type (:type data)
+        un-children (impl/unwrap children)]
+    (merge
+      (if (valid-replacement-type? replacement-type)
+        (assoc un-children :type replacement-type)
+        un-children)
+      (select-keys data [:description]))))
 
 (defmethod accept-spec ::default [_ spec _ _]
   (when spec ::invalid))

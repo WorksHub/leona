@@ -4,7 +4,8 @@
              [leona.core :as leona]
              [leona.schema :as schema]
              [leona.test-spec :as test]
-             [leona.util :as util]))
+             [leona.util :as util]
+             [spec-tools.core :as st]))
 
 (deftest fix-references-test
   (let [s {:objects {:test {:fields {:b {:objects {:b {:fields {:a {:type '(non-null Int)}}}}},
@@ -14,6 +15,20 @@
                       :b {:fields {:a {:type '(non-null Int)}}}
                       :d {:fields {:c {:type '(non-null String)}}}}}
            (schema/fix-references s)))))
+
+(deftest valid-replacement-type?-test
+  (is (schema/valid-replacement-type? 'String))
+  (is (schema/valid-replacement-type? 'Float))
+  (is (schema/valid-replacement-type? 'Int))
+  (is (schema/valid-replacement-type? 'Boolean))
+  (is (schema/valid-replacement-type? 'ID))
+  (is (schema/valid-replacement-type? '(list Int)))
+  (is (schema/valid-replacement-type? '(non-null Float)))
+  (is (not (schema/valid-replacement-type? :Int)))
+  (is (not (schema/valid-replacement-type? nil)))
+  (is (not (schema/valid-replacement-type? "Foo")))
+  (is (not (schema/valid-replacement-type? int?)))
+  (is (not (schema/valid-replacement-type? [double?]))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -164,8 +179,22 @@
 (deftest schema-and-test-fail
   (s/def ::a (s/and even? odd?))
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (thrown-with-msg? Exception #"Error: 'and' must include a recognised predicate"
+  (is (thrown-with-msg? Exception #"Error: 's/and' must include a recognised predicate"
                         (schema/transform ::test))))
+
+(deftest schema-or-test
+  "If we recognise a predicate we use that"
+  (s/def ::a (s/or :int int? :odd odd?))
+  (s/def ::test (s/keys :opt-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type 'Int}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-or-test-fail
+  (s/def ::a (s/or :even even? :odd odd?))
+  (s/def ::test (s/keys :opt-un [::a]))
+  (is (thrown-with-msg? Exception #"Error: 's/or' must include a recognised predicate"
+                        (schema/transform ::test))))
+
 
 (deftest schema-exception-test
   (s/def ::a map?)
@@ -204,3 +233,17 @@
   (is (= result
          (schema/combine ::test/human
                          ::test/droid))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest schema-description-test
+  (s/def ::a (st/spec int? {:description "FooBarBaz"}))
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type '(non-null Int) :description "FooBarBaz"}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-type-test
+  (s/def ::a (st/spec int? {:type 'Boolean}))
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type 'Boolean}}}}}
+         (schema/transform ::test))))

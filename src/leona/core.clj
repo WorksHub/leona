@@ -90,6 +90,14 @@
       (update :specs   conj field-spec)
       (update :field-resolvers assoc field-spec {:resolver resolver})))
 
+(defn attach-field-resolvers
+  "Adds a series of field resolvers into the provided pre-compiled data structure"
+  [m & field-pairs]
+  {:pre [(s/valid? ::pre-compiled-data m)
+         (not (zero? (count field-pairs)))
+         (even? (count field-pairs))]}
+  (reduce (fn [a [fs r]] (attach-field-resolver a fs r)) m (partition 2 field-pairs)))
+
 (defn attach-middleware
   "Adds a middleware fn into the provided pre-compiled data structure"
   [m middleware-fn]
