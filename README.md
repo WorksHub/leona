@@ -1,14 +1,29 @@
-# leona
+# Leona
+_Pen or sword - the shield is mightiest  - Leona_
 
-A Clojure library designed to ... well, that part is up to you.
+[![Clojars Project](https://img.shields.io/clojars/v/leona.svg)](https://clojars.org/leona)
+
+A toolbox designed to make working with GraphQL and clojure.spec a more pleasant experience.
+
+Leona can build Lacinia schema just by telling it the queries and mutations you want to make. You can add resolvers for specific fields and add middleware inside the executor.
 
 ## Usage
 
-FIXME
+``` clojure
+(require '[leona.core :as leona])
+
+(let [schema (-> (leona/create)
+                 (leona/attach-query ::query-spec query-resolver-fn ::object)
+                 (leona/attach-mutation ::mutation-spec mutator-fn ::object)
+                 (leona/attach-field-resolver ::field-in-object field-resolver-fn)
+                 (leona/attach-middleware middeware-fn)
+                 (leona/compile))]
+  (leona/execute schema "query { object(id: 1001) { id, name, field_in_object }}")
+```
 
 ## License
 
-Copyright © 2018 FIXME
+Copyright © 2018 Antony Woods, WorksHub Ltd.
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
