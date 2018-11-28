@@ -141,6 +141,24 @@
                                     :d {:type '(non-null :d)}}}}}
          (schema/transform ::test))))
 
+(deftest schema-req-un-reference-opt-un-coll-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :req-un [::a]))
+  (s/def ::c (s/coll-of ::b))
+  (s/def ::test (s/keys :opt-un [::c]))
+  (is (= {:objects {:b {:fields {:a {:type '(non-null Int)}}}
+                    :test {:fields {:c {:type '(list :b)}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-req-un-reference-req-un-coll-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :req-un [::a]))
+  (s/def ::c (s/coll-of ::b))
+  (s/def ::test (s/keys :req-un [::c]))
+  (is (= {:objects {:b {:fields {:a {:type '(non-null Int)}}}
+                    :test {:fields {:c {:type '(non-null (list :b))}}}}}
+         (schema/transform ::test))))
+
 (deftest schema-reference-name-req-req-test
   (s/def ::a int?)
   (s/def ::b (s/keys :req-un [::a]))

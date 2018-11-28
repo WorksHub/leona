@@ -109,7 +109,7 @@
   ([m resolver]
    ;; TODO infer specs from fdef
    )
-  ([m query-spec resolver results-spec]
+  ([m query-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
        (update :specs   conj results-spec)
@@ -121,7 +121,7 @@
   ([m resolver]
    ;; TODO infer specs from fdef
    )
-  ([m mutation-spec resolver results-spec]
+  ([m mutation-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
        (update :specs   conj results-spec)

@@ -13,8 +13,8 @@ Leona can build Lacinia schema just by telling it the queries and mutations you 
 (require '[leona.core :as leona])
 
 (let [schema (-> (leona/create)
-                 (leona/attach-query ::query-spec query-resolver-fn ::object)
-                 (leona/attach-mutation ::mutation-spec mutator-fn ::object)
+                 (leona/attach-query ::query-spec ::object query-resolver-fn)
+                 (leona/attach-mutation ::mutation-spec ::object mutator-fn)
                  (leona/attach-field-resolver ::field-in-object field-resolver-fn)
                  (leona/attach-middleware middeware-fn)
                  (leona/compile))]

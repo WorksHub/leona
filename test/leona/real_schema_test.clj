@@ -129,6 +129,6 @@
   (s/def ::job-input (s/keys :req-un [:wh.job/id]))
   (let [job-resolver (fn [c q v])
         compiled-schema (-> (leona/create)
-                            (leona/attach-query ::job-input job-resolver :wh/job)
+                            (leona/attach-query ::job-input :wh/job job-resolver)
                             (leona/compile))]
     (is (:compiled compiled-schema))))
