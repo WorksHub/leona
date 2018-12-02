@@ -142,11 +142,14 @@
 
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
-  [m frs]
-  (if-let [fr (some (fn [[k v]] (when (= (util/clj-name->gql-name k) (:type m))
+  [m field frs]
+  (if-let [fr (some (fn [[k v]] (when (= (util/clj-name->gql-name k) field)
                                   (assoc v :spec k))) frs)]
-    (assoc m :resolve (wrap-resolver :field (:resolver fr) any? (:spec fr)))
+    (assoc-in m [field :resolve] (wrap-resolver :field (:resolver fr) any? (:spec fr)))
     m))
+
+(s/def ::field-with-type
+  (s/map-of keyword? (s/and map? #(contains? % :type))))
 
 (defn inject-field-resolvers
   "Walks a set of objects, attempting to inject field resolvers into certain types"
@@ -154,8 +157,8 @@
   (update
    m :objects
    #(walk/postwalk
-     (fn [d] (if (and (map? d) (contains? d :type) (keyword? (:type d)))
-               (inject-field-resolver d frs)
+     (fn [d] (if (s/valid? ::field-with-type d)
+               (inject-field-resolver d (-> d keys first) frs)
                d)) %)))
 
 (defn generate

@@ -191,16 +191,17 @@
     (is (= "R2D2" (get-in result [:data :droid :name])))
     (is (= (:id human) (get-in result [:data :droid :owner :id])))))
 
+
 (deftest field-resolver-included-test
   (s/def ::a int?)
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::test (s/keys :opt-un [::b]))
   (s/def ::test-query (s/keys :opt-un [::a]))
-  (is (get-in (-> (leona/create)
-                  (leona/attach-query ::test-query ::test droid-resolver)
-                  (leona/attach-field-resolver ::b (constantly {:a 123}))
-                  (leona/generate))
-              [:objects :test :fields :b :resolve])))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::test-query ::test droid-resolver)
+              (leona/attach-field-resolver ::b (constantly {:a 123}))
+              (leona/generate))]
+    (is (get-in r [:objects :test :fields :b :resolve]))))
 
 (deftest field-resolver-coll-included-test
   (s/def ::a int?)
@@ -208,8 +209,20 @@
   (s/def ::c (s/coll-of ::b))
   (s/def ::test (s/keys :opt-un [::c]))
   (s/def ::test-query (s/keys :opt-un [::a]))
-  (is (get-in (-> (leona/create)
-                  (leona/attach-query ::test-query ::test droid-resolver)
-                  (leona/attach-field-resolver ::c (constantly {:a 123}))
-                  (leona/generate))
-              [:objects :test :fields :c :resolve])))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::test-query ::test droid-resolver)
+              (leona/attach-field-resolver ::c (constantly {:a 123}))
+              (leona/generate))]
+    (is (get-in r [:objects :test :fields :c :resolve]))))
+
+(deftest field-resolver-coll-included-in-ref-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :req-un [::a]))
+  (s/def ::c (s/coll-of ::b))
+  (s/def ::test (s/keys :opt-un [::c]))
+  (s/def ::test-query (s/keys :opt-un [::a]))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::test-query ::test droid-resolver)
+              (leona/attach-field-resolver ::a (constantly {:a 123}))
+              (leona/generate))]
+    (is (get-in r [:objects :b :fields :a :resolve]))))
