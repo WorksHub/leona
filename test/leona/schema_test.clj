@@ -156,7 +156,7 @@
   (s/def ::c (s/coll-of ::b))
   (s/def ::test (s/keys :req-un [::c]))
   (is (= {:objects {:b {:fields {:a {:type '(non-null Int)}}}
-                    :test {:fields {:c {:type '(non-null (list :b))}}}}}
+                    :test {:fields {:c {:type '(non-null (list (non-null :b)))}}}}}
          (schema/transform ::test))))
 
 (deftest schema-reference-name-req-req-test
