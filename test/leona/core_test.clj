@@ -17,17 +17,17 @@
         droid-mutator  (fn [ctx query value])
         human-resolver (fn [ctx query value])
         middleware     (fn [handler ctx query value])]
-    (is (= {:specs #{::test/droid ::test/human}
+    (is (= {:specs #{::test/droid}
             :middleware [middleware]
             :queries {::test/droid {:resolver droid-resolver
                                     :query-spec ::test/droid-query}}
             :mutations {::test/droid {:resolver droid-mutator
                                       :mutation-spec ::test/droid-mutation}}
-            :field-resolvers {::test/human {:resolver human-resolver}}}
+            :field-resolvers {::test/owner {:resolver human-resolver}}}
            (-> (leona/create)
                (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
-               (leona/attach-field-resolver ::test/human human-resolver)
+               (leona/attach-field-resolver ::test/owner human-resolver)
                (leona/attach-middleware middleware))))))
 
 (defn droid-resolver
@@ -185,7 +185,7 @@
         human-resolver (fn [ctx query value] human)
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
-                            (leona/attach-field-resolver ::test/human human-resolver)
+                            (leona/attach-field-resolver ::test/owner human-resolver) ;; 'owner' is the field
                             (leona/compile))
         result (leona/execute compiled-schema "query { droid(id: 1001) { name, operational_QMARK_, owner {id} }}")]
     (is (= "R2D2" (get-in result [:data :droid :name])))

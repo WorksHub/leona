@@ -86,9 +86,7 @@
   "Adds a field resolver into the provided pre-compiled data structure"
   [m field-spec resolver]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (-> m
-      (update :specs   conj field-spec)
-      (update :field-resolvers assoc field-spec {:resolver resolver})))
+  (update m :field-resolvers assoc field-spec {:resolver resolver}))
 
 (defn attach-field-resolvers
   "Adds a series of field resolvers into the provided pre-compiled data structure"
@@ -158,7 +156,7 @@
    m :objects
    #(walk/postwalk
      (fn [d] (if (s/valid? ::field-with-type d)
-               (inject-field-resolver d (-> d keys first) frs)
+               (reduce-kv (fn [a k _] (inject-field-resolver a k frs)) d d)
                d)) %)))
 
 (defn generate
