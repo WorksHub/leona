@@ -86,9 +86,7 @@
   "Adds a field resolver into the provided pre-compiled data structure"
   [m field-spec resolver]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (-> m
-      (update :specs   conj field-spec)
-      (update :field-resolvers assoc field-spec {:resolver resolver})))
+  (update m :field-resolvers assoc field-spec {:resolver resolver}))
 
 (defn attach-field-resolvers
   "Adds a series of field resolvers into the provided pre-compiled data structure"
@@ -109,7 +107,7 @@
   ([m resolver]
    ;; TODO infer specs from fdef
    )
-  ([m query-spec resolver results-spec]
+  ([m query-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
        (update :specs   conj results-spec)
@@ -121,7 +119,7 @@
   ([m resolver]
    ;; TODO infer specs from fdef
    )
-  ([m mutation-spec resolver results-spec]
+  ([m mutation-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
        (update :specs   conj results-spec)
@@ -142,11 +140,14 @@
 
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
-  [m frs]
-  (if-let [fr (some (fn [[k v]] (when (= (util/clj-name->gql-name k) (:type m))
+  [m field frs]
+  (if-let [fr (some (fn [[k v]] (when (= (util/clj-name->gql-name k) field)
                                   (assoc v :spec k))) frs)]
-    (assoc m :resolve (wrap-resolver :field (:resolver fr) any? (:spec fr)))
+    (assoc-in m [field :resolve] (wrap-resolver :field (:resolver fr) any? (:spec fr)))
     m))
+
+(s/def ::field-with-type
+  (s/map-of keyword? (s/and map? #(contains? % :type))))
 
 (defn inject-field-resolvers
   "Walks a set of objects, attempting to inject field resolvers into certain types"
@@ -154,8 +155,8 @@
   (update
    m :objects
    #(walk/postwalk
-     (fn [d] (if (and (map? d) (contains? d :type) (keyword? (:type d)))
-               (inject-field-resolver d frs)
+     (fn [d] (if (s/valid? ::field-with-type d)
+               (reduce-kv (fn [a k _] (inject-field-resolver a k frs)) d d)
                d)) %)))
 
 (defn generate

@@ -58,12 +58,25 @@
        d))
    schema))
 
+(defn- fix-lists
+  "Attempts to find types inside lists and removes the inner type map"
+  [schema]
+  (walk/postwalk
+   (fn [d]
+     (cond
+       (and (seq? d) (= (first d) 'list) (map? (second d)) (contains? (second d) :type))
+       (clojure.core/list 'list (:type (second d)))
+       ;;
+       :else d))
+   schema))
+
 (defn fix-references
   [schema]
   (let [new-objects (atom {})]
     (-> schema
         (update :objects (partial extract-objects new-objects))
-        (update :objects #(merge @new-objects %)))))
+        (update :objects #(merge @new-objects %))
+        (update :objects fix-lists))))
 
 (defn transform
   ([spec]
@@ -197,11 +210,17 @@
 
 (defn remove-non-null
   [f]
-  (walk/postwalk
-   (fn [x]
-     (if (and (seq? x) (= (first x) 'non-null))
-       (second x)
-       x)) f))
+  (let [lock? (atom false)]
+    (walk/prewalk
+     (fn [x]
+       (when (or (and (map? x) (contains? x :objects))
+                 (and (vector? x) (= (first x) :objects)))
+         (reset! lock? true))
+       (cond
+         @lock? x
+         (and (seq? x) (= (first x) 'non-null))
+         (second x)
+         :else x)) f)))
 
 (defn make-optional-fields
   ([fields spec]
