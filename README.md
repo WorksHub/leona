@@ -2,7 +2,7 @@
 _Pen or sword - the shield is mightiest  - Leona_
 
 [![Clojars Project](https://img.shields.io/clojars/v/leona.svg)](https://clojars.org/leona)
-[![CircleCI](https://circleci.com/gh/works-hub/leona/tree/master.svg?style=svg)](https://circleci.com/gh/works-hub/leona/tree/master)
+[![CircleCI](https://circleci.com/gh/Works-Hub/leona.svg?style=svg)](https://circleci.com/gh/Works-Hub/leona)
 
 A toolbox designed to make working with GraphQL and clojure.spec a more pleasant experience.
 
