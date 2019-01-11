@@ -196,6 +196,8 @@
 
 (defn execute
   "Executes Lacinia commands; adds middleware into the context which is required by the resolver wrapper"
-  [m query]
-  {:pre [(s/valid? ::compiled-data m)]}
-  (lacinia/execute (:compiled m) query nil (select-keys m [:middleware])))
+  ([m query]
+   (execute m query nil {}))
+  ([m query variables ctx]
+   {:pre [(s/valid? ::compiled-data m)]}
+   (lacinia/execute (:compiled m) query variables (merge ctx (select-keys m [:middleware])))))
