@@ -2,6 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.test :refer :all]
             [com.walmartlabs.lacinia.schema :as lacinia-schema]
+            [com.walmartlabs.lacinia.util :as lacinia-util]
             [leona.core :as leona]
             [leona.schema :as leona-schema]
             [leona.test-spec :as test]
@@ -23,7 +24,8 @@
                                     :query-spec ::test/droid-query}}
             :mutations {::test/droid {:resolver droid-mutator
                                       :mutation-spec ::test/droid-mutation}}
-            :field-resolvers {::test/owner {:resolver human-resolver}}}
+            :field-resolvers {::test/owner {:resolver human-resolver}}
+            :schemas []}
            (-> (leona/create)
                (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
@@ -226,3 +228,31 @@
               (leona/attach-field-resolver ::a (constantly {:a 123}))
               (leona/generate))]
     (is (get-in r [:objects :b :fields :a :resolve]))))
+
+;;;;;;;
+
+(deftest basic-merge-schema-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :req-un [::a]))
+  (s/def ::test (s/keys :opt-un [::b]))
+  (s/def ::test-query (s/keys :opt-un [::a]))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::test-query ::test droid-resolver)
+              (leona/attach-schema {:objects {:foo {:fields {:bar {:type 'String}}}}})
+              (leona/compile))]
+    (is (get-in r [:generated :objects :foo :fields :bar]))))
+
+(deftest merge-schema-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :req-un [::a]))
+  (s/def ::test (s/keys :opt-un [::b]))
+  (s/def ::test-query (s/keys :opt-un [::a]))
+  (def schema
+    (-> {:queries {:alice {:type :foo, :args {:bob {:type 'Int}}, :resolve :my-query}}
+         :objects {:foo {:fields {:bar {:type 'String}}}}}
+        (lacinia-util/attach-resolvers {:my-query identity})))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::test-query ::test droid-resolver)
+              (leona/attach-schema schema)
+              (leona/compile))]
+    (is (= identity (get-in r [:generated :queries :alice :resolve])))))

@@ -80,7 +80,8 @@
    :queries {}
    :mutations {}
    :field-resolvers {}
-   :middleware []})
+   :middleware []
+   :schemas []})
 
 (defn attach-field-resolver
   "Adds a field resolver into the provided pre-compiled data structure"
@@ -104,9 +105,9 @@
 
 (defn attach-query
   "Adds a query resolver into the provided pre-compiled data structure"
-  ([m resolver]
-   ;; TODO infer specs from fdef
-   )
+  #_([m resolver]
+     ;; TODO infer specs from fdef
+     )
   ([m query-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
@@ -116,15 +117,21 @@
 
 (defn attach-mutation
   "Adds a mutation resolver fn into the provided pre-compiled data structure"
-  ([m resolver]
-   ;; TODO infer specs from fdef
-   )
+  #_([m resolver]
+     ;; TODO infer specs from fdef
+     )
   ([m mutation-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
        (update :specs   conj results-spec)
        (update :mutations assoc results-spec {:resolver resolver
                                               :mutation-spec mutation-spec}))))
+
+(defn attach-schema
+  "Adds an external Lacinia schema into the provided pre-compiled data structure"
+  [m schema]
+  {:pre [(s/valid? ::pre-compiled-data m)]}
+  (update m :schemas conj schema))
 
 (defn- generate-root-objects
   "Generates root objects (mutations and queries) from the pre-compiled data structure"
@@ -159,6 +166,14 @@
                (reduce-kv (fn [a k _] (inject-field-resolver a k frs)) d d)
                d)) %)))
 
+(defn add-external-schemas
+  [generated schemas]
+  (if (not-empty schemas)
+    (reduce (partial merge-with merge) generated schemas)
+    generated))
+
+;;;;;
+
 (defn generate
   "Takes pre-compiled data structure and converts it into a Lacinia schema"
   [m]
@@ -172,7 +187,9 @@
   "Generates a Lacinia schema from pre-compiled data structure and compiles it."
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (let [generated (generate m)]
+  (let [generated (-> m
+                      (generate)
+                      (add-external-schemas (:schemas m)))]
     {:compiled   (lacinia-schema/compile generated)
      :generated  generated
      :middleware (:middleware m)}))
