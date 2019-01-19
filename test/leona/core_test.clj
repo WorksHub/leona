@@ -175,7 +175,7 @@
                    (leona/compile)
                    (leona/execute "query { droid(id: 1001) { name }}"))]
     (is (:errors result))
-    (is (= {:key :auth-failed, :arguments {:id "1001"}} (-> result :errors first :extensions)))))
+    (is (= {:key :auth-failed, :arguments {:id 1001}} (-> result :errors first :extensions)))))
 
 ;;;;;;;
 
