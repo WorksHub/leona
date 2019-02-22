@@ -138,12 +138,24 @@
   [m access-key id]
   (->> m
        (map (fn [[k v]]
-              (hash-map (util/clj-name->gql-name k)
-                        {:type (util/clj-name->gql-name k)
-                         :args (get-in (leona-schema/transform (get v access-key))
-                                       [:objects (util/clj-name->gql-name (get v access-key)) :fields])
-                         :resolve (wrap-resolver id (:resolver v) (get v access-key) k)})))
+              (let [objects (:objects (leona-schema/transform (get v access-key)))
+                    args-object (util/clj-name->gql-name (get v access-key))]
+                (hash-map (util/clj-name->gql-name k)
+                          {:type (util/clj-name->gql-name k)
+                           :input-objects (dissoc objects args-object)
+                           :args (get-in objects [args-object :fields])
+                           :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}))))
        (apply merge)))
+
+(defn- extract-input-objects
+  "Extracts an input object map out of the result of generate-root-objects."
+  [m]
+  (apply merge (map :input-objects (vals m))))
+
+(defn- dissoc-input-objects
+  "Remove input objects from individual query/mutation maps."
+  [m]
+  (into {} (map (fn [[k v]] [k (dissoc v :input-objects)]) m)))
 
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
@@ -178,10 +190,14 @@
   "Takes pre-compiled data structure and converts it into a Lacinia schema"
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (cond-> (apply leona-schema/combine (:specs m))
-    (not-empty (:queries m))         (assoc :queries   (generate-root-objects (:queries m)   :query-spec    :query))
-    (not-empty (:mutations m))       (assoc :mutations (generate-root-objects (:mutations m) :mutation-spec :mutation))
-    (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m))))
+  (let [queries       (generate-root-objects (:queries m)   :query-spec    :query)
+        mutations     (generate-root-objects (:mutations m) :mutation-spec :mutation)
+        input-objects (merge (extract-input-objects queries) (extract-input-objects mutations))]
+    (cond-> (apply leona-schema/combine (:specs m))
+      queries                          (assoc :queries       (dissoc-input-objects queries))
+      mutations                        (assoc :mutations     (dissoc-input-objects mutations))
+      input-objects                    (assoc :input-objects input-objects)
+      (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m)))))
 
 (defn compile
   "Generates a Lacinia schema from pre-compiled data structure and compiles it."
