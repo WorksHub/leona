@@ -152,6 +152,11 @@
   [m]
   (apply merge (map :input-objects (vals m))))
 
+(defn- dissoc-input-objects
+  "Remove input objects from individual query/mutation maps."
+  [m]
+  (into {} (map (fn [[k v]] [k (dissoc v :input-objects)]) m)))
+
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
   [m field frs]
@@ -189,8 +194,8 @@
         mutations     (generate-root-objects (:mutations m) :mutation-spec :mutation)
         input-objects (merge (extract-input-objects queries) (extract-input-objects mutations))]
     (cond-> (apply leona-schema/combine (:specs m))
-      queries                          (assoc :queries       queries)
-      mutations                        (assoc :mutations     mutations)
+      queries                          (assoc :queries       (dissoc-input-objects queries))
+      mutations                        (assoc :mutations     (dissoc-input-objects mutations))
       input-objects                    (assoc :input-objects input-objects)
       (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m)))))
 

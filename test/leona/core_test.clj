@@ -54,7 +54,6 @@
 (deftest generate-query-test
   (is (= {:droid
           {:type :droid,
-           :input-objects {},
            :args {:id {:type '(non-null Int)},
                   (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :episode)}}}}
          (-> (leona/create)
@@ -66,7 +65,6 @@
 (deftest generate-mutation-test
   (is (= {:droid
           {:type :droid,
-           :input-objects {},
            :args {:id {:type '(non-null Int)},
                   :primary_functions {:type '(list String)}}}}
          (-> (leona/create)
