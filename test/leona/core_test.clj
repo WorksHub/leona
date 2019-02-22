@@ -54,6 +54,7 @@
 (deftest generate-query-test
   (is (= {:droid
           {:type :droid,
+           :input-objects {},
            :args {:id {:type '(non-null Int)},
                   (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :episode)}}}}
          (-> (leona/create)
@@ -65,6 +66,7 @@
 (deftest generate-mutation-test
   (is (= {:droid
           {:type :droid,
+           :input-objects {},
            :args {:id {:type '(non-null Int)},
                   :primary_functions {:type '(list String)}}}}
          (-> (leona/create)
@@ -146,6 +148,24 @@
         result (leona/execute compiled-schema "mutation { droid(id: 1003) { name }}")]
     (is (:errors result))
     (is (= :invalid-mutation-result (-> result :errors first :extensions :key)))))
+
+;;;;;
+
+(deftest input-object-test
+  (s/def ::num int?)
+  (s/def ::nums (s/coll-of ::num))
+  (s/def ::input (s/keys :req-un [::num ::nums]))
+  (s/def ::args (s/keys :req-un [::input]))
+  (s/def ::test (s/keys :req-un [::num]))
+  (s/def ::test-query (s/keys :req-un [::input]))
+  (let [resolver (fn [ctx query value]
+                   (let [{:keys [num nums]} (:input query)]
+                     {:num (apply + num nums)}))
+        compiled-schema (-> (leona/create)
+                            (leona/attach-query ::test-query ::test resolver)
+                            (leona/compile))
+        result (leona/execute compiled-schema "query Test($input: input!) { test(input: $input) { num }}" {:input {:num 1, :nums [2 3]}} {})]
+    (is (= 6 (get-in result [:data :test :num])))))
 
 ;;;;;
 
