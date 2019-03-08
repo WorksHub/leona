@@ -1,6 +1,6 @@
 (defproject workshub/leona "0.1.4-SNAPSHOT"
   :description "A pipeline for working with clojure.spec and GraphQL"
-  :url "https://github.com/acron0/leona"
+  :url "https://github.com/WorksHub/leona"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.0"]
