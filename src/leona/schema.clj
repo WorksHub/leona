@@ -351,9 +351,13 @@
         un-children (impl/unwrap children)]
     (merge
       (if (valid-replacement-type? replacement-type)
-        (if (map? un-children)
-          (assoc un-children :type replacement-type)
-          {:type replacement-type})
+        (let [replacement-type' (if (and (seq? replacement-type) ;; extract enum if we have one
+                                         (= (first replacement-type) 'enum))
+                                  (second replacement-type)
+                                  replacement-type)]
+          (if (map? un-children)
+            (assoc un-children :type replacement-type')
+            {:type replacement-type'}))
         un-children)
       (select-keys data [:description]))))
 

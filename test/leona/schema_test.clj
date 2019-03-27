@@ -277,3 +277,15 @@
   (s/def ::test (s/keys :req-un [::a]))
   (is (= {:objects {:test {:fields {:a {:type 'Boolean}}}}}
          (schema/transform ::test))))
+
+(deftest schema-type-enum-test
+  (s/def ::a (st/spec int? {:type '(enum :foo)}))
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type :foo}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-type-kw-ignored-test
+  (s/def ::a (st/spec int? {:type :foo}))
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type '(non-null Int)}}}}}
+         (schema/transform ::test))))
