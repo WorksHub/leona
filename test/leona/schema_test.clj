@@ -35,7 +35,8 @@
   (is (schema/valid-replacement-type? 'ID))
   (is (schema/valid-replacement-type? '(list Int)))
   (is (schema/valid-replacement-type? '(non-null Float)))
-  (is (schema/valid-replacement-type? :Int)) ;; keywords are allowed because
+  (is (schema/valid-replacement-type? '(enum :Int)))
+  (is (not (schema/valid-replacement-type? :Int)))
   (is (not (schema/valid-replacement-type? nil)))
   (is (not (schema/valid-replacement-type? "Foo")))
   (is (not (schema/valid-replacement-type? int?)))

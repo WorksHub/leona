@@ -336,8 +336,12 @@
 
 (defn valid-replacement-type?
   [t]
-  (and t (or (s/valid? ::replacement-types (flatten [t]))
-             (keyword? t)))) ;; if it's a keyword, we have to assume it's an enum. Good luck!
+  (if t
+    (let [flat (flatten [t])]
+      (if (= (first flat) 'enum)
+        (keyword? (second flat))
+        (s/valid? ::replacement-types flat)))
+    false))
 
 ;; ???
 (defmethod accept-spec ::visitor/spec [_ spec children _]
