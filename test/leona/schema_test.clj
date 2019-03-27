@@ -35,7 +35,7 @@
   (is (schema/valid-replacement-type? 'ID))
   (is (schema/valid-replacement-type? '(list Int)))
   (is (schema/valid-replacement-type? '(non-null Float)))
-  (is (not (schema/valid-replacement-type? :Int)))
+  (is (schema/valid-replacement-type? :Int)) ;; keywords are allowed because
   (is (not (schema/valid-replacement-type? nil)))
   (is (not (schema/valid-replacement-type? "Foo")))
   (is (not (schema/valid-replacement-type? int?)))
@@ -231,13 +231,13 @@
   (is (thrown-with-msg? Exception #"Spec could not be transformed"
                         (schema/transform ::test))))
 
-(deftest has-invalid-key?-test
-  (is (schema/has-invalid-key? {:a :leona.schema/invalid}))
-  (is (schema/has-invalid-key? {:a {:b :leona.schema/invalid}}))
-  (is (schema/has-invalid-key? {:a {:b {:c 1 :d :leona.schema/invalid}}}))
-  (is (not (schema/has-invalid-key? {:a 1})))
-  (is (not (schema/has-invalid-key? {:a [:leona.schema/invalid]})))
-  (is (not (schema/has-invalid-key? {:leona.schema/invalid 1}))))
+(deftest find-invalid-key-test
+  (is (schema/find-invalid-key {:a :leona.schema/invalid}))
+  (is (schema/find-invalid-key {:a {:b :leona.schema/invalid}}))
+  (is (schema/find-invalid-key {:a {:b {:c 1 :d :leona.schema/invalid}}}))
+  (is (not (schema/find-invalid-key {:a 1})))
+  (is (not (schema/find-invalid-key {:a [:leona.schema/invalid]})))
+  (is (not (schema/find-invalid-key {:leona.schema/invalid 1}))))
 
 (def result
   {:objects
