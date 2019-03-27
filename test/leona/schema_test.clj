@@ -199,6 +199,16 @@
                                     :d {:type :d}}}}}
          (schema/transform ::test))))
 
+(deftest schema-merge-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :opt-un [::a]))
+  (s/def ::c string?)
+  (s/def ::d (s/keys :opt-un [::c]))
+  (s/def ::test (s/merge ::b ::d))
+  (is (= {:objects {:test {:fields {:a {:type 'Int},
+                                    :c {:type 'String}}}}}
+         (schema/transform ::test))))
+
 (deftest schema-and-test
   "If we recognise a predicate we use that"
   (s/def ::a (s/and int? odd?))
