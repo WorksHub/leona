@@ -35,6 +35,7 @@
   (is (schema/valid-replacement-type? 'ID))
   (is (schema/valid-replacement-type? '(list Int)))
   (is (schema/valid-replacement-type? '(non-null Float)))
+  (is (schema/valid-replacement-type? '(enum :Int)))
   (is (not (schema/valid-replacement-type? :Int)))
   (is (not (schema/valid-replacement-type? nil)))
   (is (not (schema/valid-replacement-type? "Foo")))
@@ -198,6 +199,16 @@
                                     :d {:type :d}}}}}
          (schema/transform ::test))))
 
+(deftest schema-merge-test
+  (s/def ::a int?)
+  (s/def ::b (s/keys :opt-un [::a]))
+  (s/def ::c string?)
+  (s/def ::d (s/keys :opt-un [::c]))
+  (s/def ::test (s/merge ::b ::d))
+  (is (= {:objects {:test {:fields {:a {:type 'Int},
+                                    :c {:type 'String}}}}}
+         (schema/transform ::test))))
+
 (deftest schema-and-test
   "If we recognise a predicate we use that"
   (s/def ::a (s/and int? odd?))
@@ -231,13 +242,13 @@
   (is (thrown-with-msg? Exception #"Spec could not be transformed"
                         (schema/transform ::test))))
 
-(deftest has-invalid-key?-test
-  (is (schema/has-invalid-key? {:a :leona.schema/invalid}))
-  (is (schema/has-invalid-key? {:a {:b :leona.schema/invalid}}))
-  (is (schema/has-invalid-key? {:a {:b {:c 1 :d :leona.schema/invalid}}}))
-  (is (not (schema/has-invalid-key? {:a 1})))
-  (is (not (schema/has-invalid-key? {:a [:leona.schema/invalid]})))
-  (is (not (schema/has-invalid-key? {:leona.schema/invalid 1}))))
+(deftest find-invalid-key-test
+  (is (schema/find-invalid-key {:a :leona.schema/invalid}))
+  (is (schema/find-invalid-key {:a {:b :leona.schema/invalid}}))
+  (is (schema/find-invalid-key {:a {:b {:c 1 :d :leona.schema/invalid}}}))
+  (is (not (schema/find-invalid-key {:a 1})))
+  (is (not (schema/find-invalid-key {:a [:leona.schema/invalid]})))
+  (is (not (schema/find-invalid-key {:leona.schema/invalid 1}))))
 
 (def result
   {:objects
@@ -275,4 +286,16 @@
   (s/def ::a (st/spec int? {:type 'Boolean}))
   (s/def ::test (s/keys :req-un [::a]))
   (is (= {:objects {:test {:fields {:a {:type 'Boolean}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-type-enum-test
+  (s/def ::a (st/spec int? {:type '(enum :foo)}))
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type :foo}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-type-kw-ignored-test
+  (s/def ::a (st/spec int? {:type :foo}))
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type '(non-null Int)}}}}}
          (schema/transform ::test))))

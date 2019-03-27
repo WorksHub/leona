@@ -30,14 +30,17 @@
      {:type (non-null (cons 'list [(:type t)]))}
      {:type (non-null (cons 'list [t]))})))
 
-(defn has-invalid-key?
-  [m]
-  (some (fn [[k v]]
-          (cond
-            (= ::invalid v) true
-            (map? v) (has-invalid-key? v)
-            :else false))
-        m))
+(defn find-invalid-key
+  ([m path]
+   (when (map? m) ;; TODO what if it's not a map?
+     (some (fn [[k v]]
+             (cond
+               (= ::invalid v) {:field k :path path}
+               (map? v) (find-invalid-key v (conj path k))
+               :else nil))
+           m)))
+  ([m]
+   (find-invalid-key m [])))
 
 (defn- extract-objects
   [a schema]
@@ -83,12 +86,13 @@
    (transform spec nil))
   ([spec options]
    (binding [*context* (atom {})]
-     (let [result (visitor/visit spec accept-spec options)]
-       (if (has-invalid-key? (second result))
-         (throw (Exception. (str "Spec could not be transformed."))) ;; TODO improve this error
-         (-> result
-             (second) ;; remove outer `non-null`
-             (fix-references)))))))
+     (let [result (-> spec
+                      (visitor/visit accept-spec options)
+                      (second)
+                      (fix-references))]
+       (if-let [field (find-invalid-key result)]
+         (throw (Exception. (str "Spec could not be transformed: " field))) ;; TODO improve this error
+         result)))))
 
 ;; any? (one-of [(return nil) (any-printable)])
 (defmethod accept-spec 'clojure.core/any? [_ _ _ _] {})
@@ -253,14 +257,16 @@
         fields (zipmap (concat names names-un) children)
         enums (get @*context* :enums)
         spec-ref (s/get-spec spec)]
-    (non-null (merge {:objects (hash-map (util/clj-name->gql-name title)
-                                         (merge {:fields (if (keyword? spec-ref)
-                                                           (make-optional-fields fields spec-ref)
-                                                           (make-optional-fields fields opt opt-un))}
-                                                (when (keyword? spec-ref)
-                                                  {:ref spec-ref})))}
-                     (when enums
-                       {:enums enums})))))
+    (if title
+      (non-null (merge {:objects (hash-map (util/clj-name->gql-name title)
+                                           (merge {:fields (if (keyword? spec-ref)
+                                                             (make-optional-fields fields spec-ref)
+                                                             (make-optional-fields fields opt opt-un))}
+                                                  (when (keyword? spec-ref)
+                                                    {:ref spec-ref})))}
+                       (when enums
+                         {:enums enums})))
+      (throw (Exception. (str "Cannot process anonymous `s/keys` specs. Please provide a name: " spec) )))))
 
 (defmethod accept-spec 'clojure.spec.alpha/or [_ spec children _]
   (if-let [t (some #(when (not= ::invalid %) %) children)]
@@ -276,32 +282,22 @@
 
 (defmethod accept-spec 'clojure.spec.alpha/int-in [_ _ _ _] {:type (non-null 'Int)})
 
-(defmethod accept-spec 'clojure.spec.alpha/merge [_ _ children _]
-  {:type "object"
-   :properties (->> (concat children
-                            (mapcat :anyOf children)
-                            (mapcat :allOf children))
-                    (map :properties)
-                    (reduce merge {}))
-   :required (->> (concat children
-                          (mapcat :allOf children))
-                  (map :required)
-                  (reduce into (sorted-set))
-                  (into []))})
+(defmethod accept-spec 'clojure.spec.alpha/merge [x spec children y]
+  (let [objects (not-empty (apply merge (map (comp :fields second first :objects second) children)))
+        enums   (not-empty (apply merge (map (comp :enums second) children)))
+        name    (util/clj-name->gql-name (st/spec-name spec))]
+    (non-null (merge {:objects (hash-map name {:fields objects})}
+                     (when enums
+                       {:enums enums})))))
 
 (defmethod accept-spec 'clojure.spec.alpha/every [_ spec children _]
-  (let [form (impl/extract-form spec)
-        {:keys [type]} (parse/parse-spec form)]
-    (case type
-      :map (hash-map (st/spec-name spec) {:additionalProperties (impl/unwrap children)})
-      :set {:type "array", :uniqueItems true, :items (impl/unwrap children)}
-      :vector {:type "array", :items (impl/unwrap children)})))
+  ::invalid)
 
 (defmethod accept-spec 'clojure.spec.alpha/every-kv [_ spec children _]
-  (hash-map (st/spec-name spec) {:additionalProperties (second children)}))
+  ::invalid)
 
 (defmethod accept-spec ::visitor/map-of [_ spec children _]
-  (hash-map (st/spec-name spec) {:additionalProperties (second children)}))
+  ::invalid)
 
 (defmethod accept-spec ::visitor/set-of [_ _ children _]
   (list (impl/unwrap children) true))
@@ -340,7 +336,12 @@
 
 (defn valid-replacement-type?
   [t]
-  (and t (s/valid? ::replacement-types (flatten [t]))))
+  (if t
+    (let [flat (flatten [t])]
+      (if (= (first flat) 'enum)
+        (keyword? (second flat))
+        (s/valid? ::replacement-types flat)))
+    false))
 
 ;; ???
 (defmethod accept-spec ::visitor/spec [_ spec children _]
@@ -350,7 +351,13 @@
         un-children (impl/unwrap children)]
     (merge
       (if (valid-replacement-type? replacement-type)
-        (assoc un-children :type replacement-type)
+        (let [replacement-type' (if (and (seq? replacement-type) ;; extract enum if we have one
+                                         (= (first replacement-type) 'enum))
+                                  (second replacement-type)
+                                  replacement-type)]
+          (if (map? un-children)
+            (assoc un-children :type replacement-type')
+            {:type replacement-type'}))
         un-children)
       (select-keys data [:description]))))
 
