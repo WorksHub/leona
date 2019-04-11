@@ -202,17 +202,17 @@
 (defn replace-input-objects [m input-objects]
   (walk/postwalk
     (fn [d]
-      (if-let [match (some #(when (or
-                                        (= d {:type %})
-                                        (= d {:type (list 'non-null %)}))
+      (if-let [match (some #(when (or (= d {:type %})
+                                      (= d {:type (list 'non-null %)}))
                               %)
-                                 (keys input-objects))]
-        (walk/postwalk (fn [m]
-                         (if (= m match)
-                           (transform-input-object-key m)
-                           m))
-                       d)
-              d))
+                           (keys input-objects))]
+        (walk/postwalk
+          (fn [n]
+            (if (= n match)
+              (transform-input-object-key n)
+              n))
+          d)
+        d))
     m))
 
 (defn generate
