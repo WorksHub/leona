@@ -204,13 +204,13 @@
 (defn replace-input-objects [m input-objects]
   "Given a map and map of input objects, replaces instances of input-object types with their transformed form"
   (walk/postwalk
-    (fn [d]
+    (fn replace-input-object-types [d]
       (if-let [match (some #(when (or (= d {:type %})
                                       (= d {:type (list 'non-null %)}))
                               %)
                            (keys input-objects))]
         (walk/postwalk
-          (fn [n]
+          (fn replace-matched-type [n]
             (if (= n match)
               (transform-input-object-key n)
               n))
