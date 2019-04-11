@@ -162,7 +162,7 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($input: input!) { test(input: $input) { num }}" {:input {:num 1, :nums [2 3]}} {})]
+        result (leona/execute compiled-schema "query Test($input: input_input!) { test(input: $input) { num }}" {:input {:num 1, :nums [2 3]}} {})]
     (is (= 6 (get-in result [:data :test :num])))))
 
 ;;;;;
