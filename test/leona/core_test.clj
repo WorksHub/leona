@@ -185,6 +185,28 @@
                               {:test_query {:input {:num 1, :nums [2 3]}}} {})]
     (is (= 6 (get-in result [:data :test :num])))))
 
+
+;;;;;
+
+(deftest input-objects-nested-list
+  (s/def ::num int?)
+  (s/def ::nums (s/coll-of ::num))
+  (s/def ::input (s/keys :req-un [::num ::nums]))
+  (s/def ::args (s/keys :req-un [::input]))
+  (s/def ::test (s/keys :req-un [::num]))
+  (s/def ::inputs (s/coll-of ::input))
+  (s/def ::test-query (s/keys :req-un [::inputs]))
+  (let [resolver (fn [ctx query value]
+                   (let [{:keys [num nums]} (first (:inputs query))]
+                     {:num (apply + num nums)}))
+        compiled-schema (-> (leona/create)
+                            (leona/attach-query ::test-query ::test resolver)
+                            (leona/compile))
+        result (leona/execute compiled-schema "query Test($inputs: [input_input!]!) { test(inputs: $inputs) { num }}" {:inputs [{:num 1, :nums [2 3]}]} {})]
+    (is (= 6 (get-in result [:data :test :num])))))
+
+
+
 ;;;;;
 
 (deftest middleware-test
