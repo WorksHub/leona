@@ -167,6 +167,26 @@
 
 ;;;;;
 
+(deftest input-object-using-input-object-test
+  (s/def ::num int?)
+  (s/def ::nums (s/coll-of ::num))
+  (s/def ::input (s/keys :req-un [::num ::nums]))
+  (s/def ::args (s/keys :req-un [::input]))
+  (s/def ::test (s/keys :req-un [::num]))
+  (s/def ::test-query (s/keys :req-un [::input]))
+  (s/def ::test-query2 (s/keys :req-un [::test-query]))
+  (let [resolver (fn [ctx query value]
+                   (let [{:keys [num nums]} (:input (:test-query query))]
+                     {:num (apply + num nums)}))
+        compiled-schema (-> (leona/create)
+                            (leona/attach-query ::test-query2 ::test resolver)
+                            (leona/compile))
+        result (leona/execute compiled-schema "query Test($test_query: test_query_input!) { test(test_query: $test_query) { num }}"
+                              {:test_query {:input {:num 1, :nums [2 3]}}} {})]
+    (is (= 6 (get-in result [:data :test :num])))))
+
+;;;;;
+
 (deftest middleware-test
   (let [test-atom (atom 10)
         mw-fn1 (fn [handler ctx query value]

@@ -232,7 +232,9 @@
       mutations                        (assoc :mutations (-> mutations
                                                              (dissoc-input-objects)
                                                              (replace-input-objects input-objects)))
-      input-objects                    (assoc :input-objects (transform-input-object-keys input-objects))
+      input-objects                    (assoc :input-objects (-> input-objects
+                                                                 (transform-input-object-keys)
+                                                                 (replace-input-objects input-objects)))
       (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m)))))
 
 (defn compile
