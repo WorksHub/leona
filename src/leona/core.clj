@@ -219,17 +219,17 @@
   "Takes pre-compiled data structure and converts it into a Lacinia schema"
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (let [queries (generate-root-objects (:queries m) :query-spec :query)
-        mutations (generate-root-objects (:mutations m) :mutation-spec :mutation)
+  (let [queries       (generate-root-objects (:queries m) :query-spec :query)
+        mutations     (generate-root-objects (:mutations m) :mutation-spec :mutation)
         input-objects (merge (extract-input-objects queries) (extract-input-objects mutations))]
     (cond-> (apply leona-schema/combine (:specs m))
-      queries (assoc :queries (-> queries
-                                  (dissoc-input-objects)
-                                  (replace-input-objects input-objects)))
-      mutations (assoc :mutations (-> mutations
-                                      (dissoc-input-objects)
-                                      (replace-input-objects input-objects)))
-      input-objects (assoc :input-objects (transform-input-object-keys input-objects))
+      queries                          (assoc :queries (-> queries
+                                                           (dissoc-input-objects)
+                                                           (replace-input-objects input-objects)))
+      mutations                        (assoc :mutations (-> mutations
+                                                             (dissoc-input-objects)
+                                                             (replace-input-objects input-objects)))
+      input-objects                    (assoc :input-objects (transform-input-object-keys input-objects))
       (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m)))))
 
 (defn compile
