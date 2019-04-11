@@ -205,16 +205,18 @@
   "Given a map and map of input objects, replaces instances of input-object types with their transformed form"
   (walk/postwalk
     (fn replace-input-object-types [d]
-      (if-let [match (some #(when (or (= d {:type %})
-                                      (= d {:type (list 'non-null %)}))
-                              %)
-                           (keys input-objects))]
-        (walk/postwalk
-          (fn replace-matched-type [n]
-            (if (= n match)
-              (transform-input-object-key n)
-              n))
-          d)
+      (if (and (map? d)
+               (contains? d :type))
+        (if (keyword? (:type d))
+          (if (some #(= (:type d) %) (keys input-objects))
+            (update d :type transform-input-object-key)
+            d)
+          (walk/postwalk
+            (fn replace-matched-type [n] ;; {:type ;..... }
+              (if (some #(= n %) (keys input-objects))
+                (transform-input-object-key n)
+                n))
+            d))
         d))
     m))
 
@@ -232,7 +234,9 @@
       mutations                        (assoc :mutations (-> mutations
                                                              (dissoc-input-objects)
                                                              (replace-input-objects input-objects)))
-      input-objects                    (assoc :input-objects (transform-input-object-keys input-objects))
+      input-objects                    (assoc :input-objects (-> input-objects
+                                                                 (transform-input-object-keys)
+                                                                 (replace-input-objects input-objects)))
       (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m)))))
 
 (defn compile
