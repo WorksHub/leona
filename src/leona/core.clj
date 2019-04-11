@@ -187,12 +187,14 @@
 ;;;;;
 
 (defn transform-input-object-key [k]
+  "Adds a suffix '_input_' to the provided keyword k"
   (-> k
       name
       (str "_input")
       keyword))
 
 (defn transform-input-object-keys [m]
+  "Given the map m, transforms all its keys using the transform-input-object-key function"
   (->> m
        (map (fn [[k v]]
               [(transform-input-object-key k)
@@ -200,6 +202,7 @@
        (into {})))
 
 (defn replace-input-objects [m input-objects]
+  "Given a map and map of input objects, replaces instances of input-object types with their transformed form"
   (walk/postwalk
     (fn [d]
       (if-let [match (some #(when (or (= d {:type %})
