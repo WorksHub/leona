@@ -20,13 +20,13 @@
   (is (= :Hello_QMARK_ (util/clj-name->gql-name :leona.util-test/hello?))))
 
 (deftest clj-name->qualified-gql-name-test
-  (is (= :hello (util/clj-name->qualified-gql-name :hello)))
-  (is (= :leona__util_test___hello (util/clj-name->qualified-gql-name ::hello)))
-  (is (= :leona__util_test___hello_QMARK_ (util/clj-name->qualified-gql-name ::hello?)))
-  (is (= :leona__util_test___hello_QMARK_ (util/clj-name->qualified-gql-name :leona.util-test/hello?))))
+  (is (= :Hello (util/clj-name->qualified-gql-name :hello)))
+  (is (= :Leona__UtilTest___Hello (util/clj-name->qualified-gql-name ::hello)))
+  (is (= :Leona__UtilTest___Hello_QMARK_ (util/clj-name->qualified-gql-name ::hello?)))
+  (is (= :Leona__UtilTest___Hello_QMARK_ (util/clj-name->qualified-gql-name :leona.util-test/hello?))))
 
-(deftest clj-name->qualified-gql-name-test
-  (is (= :hello (util/gql-name->clj-name :hello)))
-  (is (= (util/gql-name->clj-name :leona__util_test___hello)))
-  (is (= ::hello? (util/gql-name->clj-name :leona__util_test___hello_QMARK_)))
-  (is (= :leona.util-test/hello? (util/gql-name->clj-name :leona__util_test___hello_QMARK_))))
+(deftest qualified-gql-name-test->clj-name
+  (is (= :hello (util/gql-name->clj-name :Hello)))
+  (is (= ::hello (util/gql-name->clj-name :Leona__UtilTest___Hello)))
+  (is (= ::hello? (util/gql-name->clj-name :Leona__UtilTest___Hello_QMARK_)))
+  (is (= :leona.util-test/hello? (util/gql-name->clj-name :Leona__UtilTest___Hello_QMARK_))))
