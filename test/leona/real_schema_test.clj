@@ -122,8 +122,8 @@
 (deftest real-schema-test
   (let [r (schema/transform :wh/job)]
     (is r)
-    (is (= #{:location :company :salary :job} (set (keys (:objects r)))))
-    (is (= {:role_type {:values ["Intern" "Contract" "Full_time"]}} (:enums r)))))
+    (is (= #{:Location :Company :Salary :Job} (set (keys (:objects r)))))
+    (is (= {:RoleType {:values ["Intern" "Contract" "Full_time"]}} (:enums r)))))
 
 (deftest real-compile
   (s/def ::job-input (s/keys :req-un [:wh.job/id]))

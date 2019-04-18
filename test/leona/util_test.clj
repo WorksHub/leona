@@ -13,10 +13,11 @@
   (is (= "hello!" (util/replace-placeholders "hello_XMARK_"))))
 
 (deftest clj-name->gql-name-test
-  (is (= :hello (util/clj-name->gql-name :hello)))
-  (is (= :hello (util/clj-name->gql-name ::hello)))
-  (is (= :hello_QMARK_ (util/clj-name->gql-name ::hello?)))
-  (is (= :hello_QMARK_ (util/clj-name->gql-name :leona.util-test/hello?))))
+  (is (= :Hello (util/clj-name->gql-name :hello)))
+  (is (= :Hello (util/clj-name->gql-name ::hello)))
+  (is (= :HelloName (util/clj-name->gql-name ::hello_name)))
+  (is (= :Hello_QMARK_ (util/clj-name->gql-name ::hello?)))
+  (is (= :Hello_QMARK_ (util/clj-name->gql-name :leona.util-test/hello?))))
 
 (deftest clj-name->qualified-gql-name-test
   (is (= :hello (util/clj-name->qualified-gql-name :hello)))

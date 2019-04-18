@@ -52,26 +52,26 @@
    :operational? true})
 
 (deftest generate-query-test
-  (is (= {:droid
-          {:type :droid,
-           :args {:id {:type '(non-null Int)},
-                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :episode)}}}}
+  (is (= {:Droid
+          {:type :Droid,
+           :args {:Id {:type '(non-null Int)},
+                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :Episode)}}}}
          (-> (leona/create)
              (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
              (leona/generate)
              :queries
-             (update :droid dissoc :resolve))))) ;; remove resolver because it gets wrapped
+             (update :Droid dissoc :resolve))))) ;; remove resolver because it gets wrapped
 
 (deftest generate-mutation-test
-  (is (= {:droid
-          {:type :droid,
-           :args {:id {:type '(non-null Int)},
-                  :primary_functions {:type '(list String)}}}}
+  (is (= {:Droid
+          {:type :Droid,
+           :args {:Id {:type '(non-null Int)},
+                  :PrimaryFunctions {:type '(list String)}}}}
          (-> (leona/create)
              (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
              (leona/generate)
              :mutations
-             (update :droid dissoc :resolve)))))
+             (update :Droid dissoc :resolve)))))
 
 (deftest query-valid-test
   (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
@@ -79,26 +79,26 @@
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                             (leona/compile))
         result (leona/execute compiled-schema
-                              (format "query { droid(id: 1001, %s: NEWHOPE) { name, operational_QMARK_, %s }}"
+                              (format "query { Droid(Id: 1001, %s: NEWHOPE) { Name, Operational_QMARK_, %s }}"
                                       appears-in-str
                                       appears-in-str))]
-    (is (= "R2D2" (get-in result [:data :droid :name])))
-    (is (= true (get-in result [:data :droid :operational_QMARK_])))
-    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
+    (is (= "R2D2" (get-in result [:data :Droid :Name])))
+    (is (= true (get-in result [:data :Droid :Operational_QMARK_])))
+    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :Droid (keyword appears-in-str)])))))
 
 (deftest query-invalid-gql-test
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query { droid(id: \"hello\") { name }}")] ;; id is NaN
+        result (leona/execute compiled-schema "query { Droid(Id: \"hello\") { Name }}")] ;; id is NaN
     (is (:errors result))
-    (is (= {:field :droid :argument :id :value "hello" :type-name :Int} (-> result :errors first :extensions)))))
+    (is (= {:field :Droid :argument :Id :value "hello" :type-name :Int} (-> result :errors first :extensions)))))
 
 (deftest query-invalid-query-spec-test
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query { droid(id: 1002) { name }}")] ;; id is even
+        result (leona/execute compiled-schema "query { Droid(Id: 1002) { Name }}")] ;; id is even
     (is (:errors result))
     (is (= :invalid-query (-> result :errors first :extensions :key)))))
 
@@ -106,7 +106,7 @@
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query { droid(id: 1003) { name }}")]
+        result (leona/execute compiled-schema "query { Droid(Id: 1003) { Name }}")]
     (is (:errors result))
     (is (= :invalid-query-result (-> result :errors first :extensions :key)))))
 
@@ -118,24 +118,24 @@
                             (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
                             (leona/compile))
         result (leona/execute compiled-schema
-                              "mutation { droid(id: 1001, primary_functions: [\"beep\"]) { name, operational_QMARK_, primary_functions }}")]
-    (is (= "R2D2"   (get-in result [:data :droid :name])))
-    (is (= true     (get-in result [:data :droid :operational_QMARK_])))
-    (is (= ["beep"] (get-in result [:data :droid :primary_functions])))))
+                              "mutation { Droid(Id: 1001, PrimaryFunctions: [\"beep\"]) { Name, Operational_QMARK_, PrimaryFunctions }}")]
+    (is (= "R2D2"   (get-in result [:data :Droid :Name])))
+    (is (= true     (get-in result [:data :Droid :Operational_QMARK_])))
+    (is (= ["beep"] (get-in result [:data :Droid :PrimaryFunctions])))))
 
 (deftest mutation-invalid-gql-test
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
                             (leona/compile))
-        result (leona/execute compiled-schema "mutation { droid(id: \"hello\") { name }}")] ;; id is NaN
+        result (leona/execute compiled-schema "mutation { Droid(Id: \"hello\") { Name }}")] ;; id is NaN
     (is (:errors result))
-    (is (= {:field :droid :argument :id :value "hello" :type-name :Int} (-> result :errors first :extensions)))))
+    (is (= {:field :Droid :argument :Id :value "hello" :type-name :Int} (-> result :errors first :extensions)))))
 
 (deftest mutation-invalid-mutation-spec-test
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
                             (leona/compile))
-        result (leona/execute compiled-schema "mutation { droid(id: 1002) { name }}")] ;; id is even
+        result (leona/execute compiled-schema "mutation { Droid(Id: 1002) { Name }}")] ;; id is even
     (is (:errors result))
     (is (= :invalid-mutation (-> result :errors first :extensions :key)))))
 
@@ -143,7 +143,7 @@
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
                             (leona/compile))
-        result (leona/execute compiled-schema "mutation { droid(id: 1003) { name }}")]
+        result (leona/execute compiled-schema "mutation { Droid(Id: 1003) { Name }}")]
     (is (:errors result))
     (is (= :invalid-mutation-result (-> result :errors first :extensions :key)))))
 
@@ -162,8 +162,8 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($input: input_input!) { test(input: $input) { num }}" {:input {:num 1, :nums [2 3]}} {})]
-    (is (= 6 (get-in result [:data :test :num])))))
+        result (leona/execute compiled-schema "query Test($Input: Input_input!) { Test(Input: $Input) { Num }}" {:Input {:Num 1, :Nums [2 3]}} {})]
+    (is (= 6 (get-in result [:data :Test :Num])))))
 
 ;;;;;
 
@@ -181,9 +181,9 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query2 ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($test_query: test_query_input!) { test(test_query: $test_query) { num }}"
-                              {:test_query {:input {:num 1, :nums [2 3]}}} {})]
-    (is (= 6 (get-in result [:data :test :num])))))
+        result (leona/execute compiled-schema "query Test($TestQuery: TestQuery_input!) { Test(TestQuery: $TestQuery) { Num }}"
+                              {:TestQuery {:Input {:Num 1, :Nums [2 3]}}} {})]
+    (is (= 6 (get-in result [:data :Test :Num])))))
 
 
 ;;;;;
@@ -202,8 +202,8 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($inputs: [input_input!]!) { test(inputs: $inputs) { num }}" {:inputs [{:num 1, :nums [2 3]}]} {})]
-    (is (= 6 (get-in result [:data :test :num])))))
+        result (leona/execute compiled-schema "query Test($Inputs: [Input_input!]!) { Test(Inputs: $Inputs) { Num }}" {:Inputs [{:Num 1, :Nums [2 3]}]} {})]
+    (is (= 6 (get-in result [:data :Test :Num])))))
 
 
 
@@ -222,8 +222,8 @@
                    (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                    (leona/attach-middleware mw-fn2)
                    (leona/compile)
-                   (leona/execute "query { droid(id: 1001) { name }}"))]
-    (is (= "R2D2" (get-in result [:data :droid :name])))
+                   (leona/execute "query { Droid(Id: 1001) { Name }}"))]
+    (is (= "R2D2" (get-in result [:data :Droid :Name])))
     (is (= 25 @test-atom))))
 
 (deftest middleware-bail-test
@@ -233,9 +233,9 @@
                    (leona/attach-middleware mw-fn1)
                    (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                    (leona/compile)
-                   (leona/execute "query { droid(id: 1001) { name }}"))]
+                   (leona/execute "query { Droid(Id: 1001) { Name }}"))]
     (is (:errors result))
-    (is (= {:key :auth-failed, :arguments {:id 1001}} (-> result :errors first :extensions)))))
+    (is (= {:key :auth-failed, :arguments {:Id 1001}} (-> result :errors first :extensions)))))
 
 ;;;;;;;
 
@@ -249,9 +249,9 @@
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                             (leona/attach-field-resolver ::test/owner human-resolver) ;; 'owner' is the field
                             (leona/compile))
-        result (leona/execute compiled-schema "query { droid(id: 1001) { name, operational_QMARK_, owner {id} }}")]
-    (is (= "R2D2" (get-in result [:data :droid :name])))
-    (is (= (:id human) (get-in result [:data :droid :owner :id])))))
+        result (leona/execute compiled-schema "query { Droid(Id: 1001) { Name, Operational_QMARK_, Owner {Id} }}")]
+    (is (= "R2D2" (get-in result [:data :Droid :Name])))
+    (is (= (:id human) (get-in result [:data :Droid :Owner :Id])))))
 
 
 (deftest field-resolver-included-test
@@ -261,9 +261,9 @@
   (s/def ::test-query (s/keys :opt-un [::a]))
   (let [r (-> (leona/create)
               (leona/attach-query ::test-query ::test droid-resolver)
-              (leona/attach-field-resolver ::b (constantly {:a 123}))
+              (leona/attach-field-resolver ::b (constantly {:A 123}))
               (leona/generate))]
-    (is (get-in r [:objects :test :fields :b :resolve]))))
+    (is (get-in r [:objects :Test :fields :B :resolve]))))
 
 (deftest field-resolver-coll-included-test
   (s/def ::a int?)
@@ -273,9 +273,9 @@
   (s/def ::test-query (s/keys :opt-un [::a]))
   (let [r (-> (leona/create)
               (leona/attach-query ::test-query ::test droid-resolver)
-              (leona/attach-field-resolver ::c (constantly {:a 123}))
+              (leona/attach-field-resolver ::c (constantly {:A 123}))
               (leona/generate))]
-    (is (get-in r [:objects :test :fields :c :resolve]))))
+    (is (get-in r [:objects :Test :fields :C :resolve]))))
 
 (deftest field-resolver-coll-included-in-ref-test
   (s/def ::a int?)
@@ -285,9 +285,9 @@
   (s/def ::test-query (s/keys :opt-un [::a]))
   (let [r (-> (leona/create)
               (leona/attach-query ::test-query ::test droid-resolver)
-              (leona/attach-field-resolver ::a (constantly {:a 123}))
+              (leona/attach-field-resolver ::a (constantly {:A 123}))
               (leona/generate))]
-    (is (get-in r [:objects :b :fields :a :resolve]))))
+    (is (get-in r [:objects :B :fields :A :resolve]))))
 
 ;;;;;;;
 

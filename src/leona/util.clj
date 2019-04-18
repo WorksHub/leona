@@ -18,7 +18,7 @@
   [t]
   (-> t
       (name)
-      (csk/->snake_case)
+      (csk/->PascalCase)
       (replace-punctuation)
       (keyword)))
 
@@ -28,7 +28,7 @@
             (-> t str (subs 1))
             (str t))]
     (-> t
-        (csk/->snake_case)
+        (csk/->PascalCase)
         (str/replace #"\." "__")
         (str/replace #"\/" "___")
         (replace-punctuation)

@@ -1,5 +1,6 @@
 # Leona
-_Pen or sword - the shield is mightiest  - Leona_
+
+_Pen or sword - the shield is mightiest - Leona_
 
 [![Clojars Project](https://img.shields.io/clojars/v/workshub/leona.svg)](https://clojars.org/workshub/leona) [![CircleCI](https://circleci.com/gh/WorksHub/leona.svg?style=svg)](https://circleci.com/gh/WorksHub/leona)
 
@@ -9,7 +10,7 @@ Leona can build Lacinia schema just by telling it the queries and mutations you 
 
 ## Quick Usage
 
-``` clojure
+```clojure
 (require '[leona.core :as leona])
 
 (let [schema (-> (leona/create)
@@ -18,7 +19,7 @@ Leona can build Lacinia schema just by telling it the queries and mutations you 
                  (leona/attach-field-resolver ::field-in-object field-resolver-fn)
                  (leona/attach-middleware middeware-fn)
                  (leona/compile))]
-  (leona/execute schema "query { object(id: 1001) { id, name, field_in_object }}")
+  (leona/execute schema "query { Object(Id: 1001) { Id, Name, FieldInObject }}")
 ```
 
 ## Examples
@@ -31,6 +32,7 @@ To add a query to the schema use `attach-query`:
 (-> (leona/create)
     (leona/attach-query ::query-spec ::object query-resolver-fn))
 ```
+
 `::query-spec` is a spec for the GraphQL query, `::object` is the spec for the returned data, and `query-resolver-fn` is the resolver function that will fetch and return the data.
 
 ### Mutations
@@ -41,6 +43,7 @@ Mutations are very similar to queries. To add a mutation to the schema use `atta
 (-> (leona/create)
     (leona/attach-mutation ::mutation-spec ::object mutator-fn))
 ```
+
 `::mutation-spec` is a spec for the GraphQL mutation, `::object` is the spec for the returned data, and `mutator-fn` is the function that will mutate the existing data and return the new, mutated data.
 
 ### Field Resolvers
@@ -53,11 +56,11 @@ To provide a resolver for a specific field, use `attach-field-resolver`:
     (leona/attach-field-resolver ::field-in-object field-resolver-fn)
 ```
 
-`::field-in-object` is a spec for the field in an existing object. **It must match a field already being inserted, in either a query or mutation. If the field isn't found amongst the objects in the schema then it won't be inserted.** `field-resolver-fn` is a resolver fn for that specific field. As is true of all field resolvers, it will be called *after* the root query/mutation resolver, so the `value` arg will already have data in it. The field resolver should add to this value.
+`::field-in-object` is a spec for the field in an existing object. **It must match a field already being inserted, in either a query or mutation. If the field isn't found amongst the objects in the schema then it won't be inserted.** `field-resolver-fn` is a resolver fn for that specific field. As is true of all field resolvers, it will be called _after_ the root query/mutation resolver, so the `value` arg will already have data in it. The field resolver should add to this value.
 
 ### Middleware
 
-It might be useful to add middleware *inside* the Lacinia executor e.g. you want to inspect a query/mutation prior to resolving **or** you want to inspect a value before it's passed back to Lacinia.
+It might be useful to add middleware _inside_ the Lacinia executor e.g. you want to inspect a query/mutation prior to resolving **or** you want to inspect a value before it's passed back to Lacinia.
 
 ```clojure
 (-> (leona/create)
