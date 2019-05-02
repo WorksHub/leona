@@ -26,7 +26,7 @@
                                       :mutation-spec ::test/droid-mutation}}
             :field-resolvers {::test/owner {:resolver human-resolver}}
             :schemas []
-            :aliases {}}
+            :type-aliases {}}
            (-> (leona/create)
                (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
