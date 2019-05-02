@@ -187,6 +187,12 @@
     (reduce (partial merge-with merge) generated schemas)
     generated))
 
+(defn attach-type-alias
+  "Attach an alias to a spec that's a type. All type instances of that spec name will be replaced with the alias. This can be used to avoid conflicts."
+  [m spec alias]
+  {:pre [(s/valid? ::pre-compiled-data m)]}
+  (assoc-in m [:type-aliases spec] alias))
+
 ;;;;;
 
 (defn transform-input-object-key
