@@ -24,11 +24,13 @@
 (s/def ::queries (s/map-of keyword? ::query))
 (s/def ::mutations (s/map-of keyword? ::mutation))
 (s/def ::field-resolvers (s/map-of keyword? ::field-resolver))
+(s/def ::type-aliases (s/map-of keyword? keyword?))
 (s/def ::pre-compiled-data (s/keys :req-un [::specs
                                             ::queries
                                             ::mutations
                                             ::field-resolvers
-                                            ::middleware]))
+                                            ::middleware
+                                            ::type-aliases]))
 (s/def ::compiled map?)
 (s/def ::compiled-data (s/keys :req-un [::compiled
                                         ::middleware]))
@@ -80,6 +82,7 @@
    :queries {}
    :mutations {}
    :field-resolvers {}
+   :type-aliases {}
    :middleware []
    :schemas []})
 
@@ -135,10 +138,10 @@
 
 (defn- generate-root-objects
   "Generates root objects (mutations and queries) from the pre-compiled data structure"
-  [m access-key id]
+  [m access-key id opts]
   (->> m
        (map (fn [[k v]]
-              (let [objects (:objects (leona-schema/transform (get v access-key)))
+              (let [objects (:objects (leona-schema/transform (get v access-key) opts))
                     args-object (util/clj-name->gql-name (get v access-key))]
                 (hash-map (util/clj-name->gql-name k)
                           {:type (util/clj-name->gql-name k)
@@ -186,48 +189,52 @@
 
 ;;;;;
 
-(defn transform-input-object-key [k]
+(defn transform-input-object-key
   "Adds a suffix '_input_' to the provided keyword k"
+  [k]
   (-> k
       name
       (str "_input")
       keyword))
 
-(defn transform-input-object-keys [m]
+(defn transform-input-object-keys
   "Given the map m, transforms all its keys using the transform-input-object-key function"
+  [m]
   (->> m
        (map (fn [[k v]]
               [(transform-input-object-key k)
                v]))
        (into {})))
 
-(defn replace-input-objects [m input-objects]
+(defn replace-input-objects
   "Given a map and map of input objects, replaces instances of input-object types with their transformed form"
+  [m input-objects]
   (walk/postwalk
-    (fn replace-input-object-types [d]
-      (if (and (map? d)
-               (contains? d :type))
-        (if (keyword? (:type d))
-          (if (some #(= (:type d) %) (keys input-objects))
-            (update d :type transform-input-object-key)
-            d)
-          (walk/postwalk
-            (fn replace-matched-type [n] ;; {:type ;..... }
-              (if (some #(= n %) (keys input-objects))
-                (transform-input-object-key n)
-                n))
-            d))
-        d))
-    m))
+   (fn replace-input-object-types [d]
+     (if (and (map? d)
+              (contains? d :type))
+       (if (keyword? (:type d))
+         (if (some #(= (:type d) %) (keys input-objects))
+           (update d :type transform-input-object-key)
+           d)
+         (walk/postwalk
+          (fn replace-matched-type [n] ;; {:type ;..... }
+            (if (some #(= n %) (keys input-objects))
+              (transform-input-object-key n)
+              n))
+          d))
+       d))
+   m))
 
 (defn generate
   "Takes pre-compiled data structure and converts it into a Lacinia schema"
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (let [queries       (generate-root-objects (:queries m) :query-spec :query)
-        mutations     (generate-root-objects (:mutations m) :mutation-spec :mutation)
+  (let [opts          (select-keys m [:type-aliases])
+        queries       (generate-root-objects (:queries m) :query-spec :query opts)
+        mutations     (generate-root-objects (:mutations m) :mutation-spec :mutation opts)
         input-objects (merge (extract-input-objects queries) (extract-input-objects mutations))]
-    (cond-> (apply leona-schema/combine (:specs m))
+    (cond-> (apply leona-schema/combine-with-opts opts (:specs m))
       queries                          (assoc :queries (-> queries
                                                            (dissoc-input-objects)
                                                            (replace-input-objects input-objects)))
