@@ -299,3 +299,20 @@
   (s/def ::test (s/keys :req-un [::a]))
   (is (= {:objects {:test {:fields {:a {:type '(non-null Int)}}}}}
          (schema/transform ::test))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest type-alias-enum-test
+  (s/def :foo/status #{:a :b :c})
+  (s/def ::test (s/keys :req-un [:foo/status]))
+  (is (= {:objects {:test {:fields {:status {:type '(non-null :foo_status)}}}}
+          :enums {:foo_status {:values [:c :b :a]}}}
+         (schema/transform ::test {:type-aliases {:foo/status :foo-status}}))))
+
+(deftest type-alias-object-test
+  (s/def ::foo int?)
+  (s/def ::bar (s/keys :opt-un [::foo]))
+  (s/def ::test (s/keys :req-un [::bar]))
+  (is (= {:objects {:test {:fields {:bar {:type '(non-null :baz)}}}
+                    :baz {:fields {:foo {:type 'Int}}}}}
+         (schema/transform ::test {:type-aliases {::bar :baz}}))))

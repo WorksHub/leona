@@ -25,7 +25,8 @@
             :mutations {::test/droid {:resolver droid-mutator
                                       :mutation-spec ::test/droid-mutation}}
             :field-resolvers {::test/owner {:resolver human-resolver}}
-            :schemas []}
+            :schemas []
+            :type-aliases {}}
            (-> (leona/create)
                (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
@@ -316,3 +317,58 @@
               (leona/attach-schema schema)
               (leona/compile))]
     (is (= identity (get-in r [:generated :queries :alice :resolve])))))
+
+
+;;;;;;;
+
+(deftest add-alias-basic-test
+  (s/def :foo/status #{:a :b :c})
+  (s/def ::my-foo-object (s/keys :req-un [:foo/status]))
+  (s/def ::my-query-var int?)
+  (s/def ::foo-query-args (s/keys :req-un [::my-query-var]))
+
+  (let [r (-> (leona/create)
+              (leona/attach-query ::foo-query-args ::my-foo-object (constantly nil))
+              (leona/attach-type-alias :foo/status :foo-status)
+              (leona/generate))]
+    (is (= '(non-null :foo_status) (get-in r [:objects :my_foo_object :fields :status :type])))
+    (is (= #{:a :b :c} (set (get-in r [:enums :foo_status :values]))))))
+
+(deftest add-alias-medium-test
+  (s/def :foo/status #{:a :b :c})
+  (s/def :bar/status #{:d :e :f})
+  (s/def ::my-foo-object (s/keys :req-un [:foo/status]))
+  (s/def ::my-bar-object (s/keys :req-un [:bar/status]))
+  (s/def ::my-query-var int?)
+  (s/def ::query-args (s/keys :req-un [::my-query-var]))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::query-args ::my-foo-object (constantly {:status :a}))
+              (leona/attach-query ::query-args ::my-bar-object (constantly {:status :d}))
+              (leona/attach-type-alias :foo/status :foo-status)
+              (leona/compile))]
+    (is (= '(non-null :foo_status) (get-in r [:generated :objects :my_foo_object :fields :status :type])))
+    (is (= '(non-null :status) (get-in r [:generated :objects :my_bar_object :fields :status :type])))
+    (is (= #{:a :b :c} (set (get-in r [:generated :enums :foo_status :values]))))
+    (is (= #{:d :e :f} (set (get-in r [:generated :enums :status :values]))))
+    (let [r (leona/execute r "query { my_foo_object(my_query_var: 1001) { status }}")]
+      (is (= :a (get-in r [:data :my_foo_object :status]))))))
+
+(deftest add-alias-in-query-test
+  (s/def ::value int?)
+  (s/def :foo/selector #{:foo :bar})
+  (s/def :bar/selector #{:baz :qux})
+  (s/def ::my-foo-object (s/keys :req-un [::value :foo/selector]))
+  (s/def ::my-bar-object (s/keys :req-un [::value :bar/selector]))
+  (s/def ::foo-query-args (s/keys :req-un [:foo/selector]))
+  (s/def ::bar-query-args (s/keys :req-un [:bar/selector]))
+  (let [r (-> (leona/create)
+              (leona/attach-query ::foo-query-args ::my-foo-object (constantly {:value 123 :selector :foo}))
+              (leona/attach-query ::bar-query-args ::my-bar-object (constantly {:value 456 :selector :qux}))
+              (leona/attach-type-alias :foo/selector :foo-status)
+              (leona/compile))]
+    (is (= '(non-null :foo_status) (get-in r [:generated :objects :my_foo_object :fields :selector :type])))
+    (is (= '(non-null :foo_status) (get-in r [:generated :queries :my_foo_object :args :selector :type])))
+    (is (= #{:foo :bar} (set (get-in r [:generated :enums :foo_status :values]))))
+    (is (= #{:baz :qux} (set (get-in r [:generated :enums :selector :values]))))
+    (let [r (leona/execute r "query { my_foo_object(selector: foo) { value }}")]
+      (is (= 123 (get-in r [:data :my_foo_object :value]))))))
