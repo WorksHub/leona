@@ -1,4 +1,4 @@
-# Leona
+# Leona 2
 _Pen or sword - the shield is mightiest  - Leona_
 
 [![Clojars Project](https://img.shields.io/clojars/v/workshub/leona.svg)](https://clojars.org/workshub/leona) [![CircleCI](https://circleci.com/gh/WorksHub/leona.svg?style=svg)](https://circleci.com/gh/WorksHub/leona)
