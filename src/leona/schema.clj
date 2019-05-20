@@ -10,6 +10,11 @@
             [spec-tools.parse :as parse]
             [spec-tools.visitor :as visitor]))
 
+
+(def valid-type-override-syms
+  "These symbols can be used to wrap types when using `st/spec`, e.g. `(st/spec my-date-pred? {:type '(custom :date)})`. They only exist separately to provide semantic information - it's not asserted anywhere that the types they reference ever exist anywhere so USE WITH CAUTION."
+  #{'enum 'custom})
+
 (defn- only-entry? [key a-map] (= [key] (keys a-map)))
 
 (defn- spec-dispatch [dispatch _ _ _] dispatch)
@@ -351,7 +356,7 @@
   [t]
   (if t
     (let [flat (flatten [t])]
-      (if (= (first flat) 'enum)
+      (if (valid-type-override-syms (first flat))
         (keyword? (second flat))
         (s/valid? ::replacement-types flat)))
     false))
@@ -363,8 +368,8 @@
         un-children (impl/unwrap children)]
     (merge
       (if (valid-replacement-type? replacement-type)
-        (let [replacement-type' (if (and (seq? replacement-type) ;; extract enum if we have one
-                                         (= (first replacement-type) 'enum))
+        (let [replacement-type' (if (and (seq? replacement-type) ;; extract valid type override fn if we have one
+                                         (valid-type-override-syms (first replacement-type)))
                                   (second replacement-type)
                                   replacement-type)]
           (if (map? un-children)
