@@ -25,12 +25,18 @@
 (s/def ::mutations (s/map-of keyword? ::mutation))
 (s/def ::field-resolvers (s/map-of keyword? ::field-resolver))
 (s/def ::type-aliases (s/map-of keyword? keyword?))
+(s/def ::parse fn?)
+(s/def ::serialize fn?)
+(s/def ::scalar-map (s/keys :req-un [::parse
+                                     ::serialize]))
+(s/def ::custom-scalars (s/map-of keyword? ::scalar-map))
 (s/def ::pre-compiled-data (s/keys :req-un [::specs
                                             ::queries
                                             ::mutations
                                             ::field-resolvers
                                             ::middleware
-                                            ::type-aliases]))
+                                            ::type-aliases
+                                            ::custom-scalars]))
 (s/def ::compiled map?)
 (s/def ::compiled-data (s/keys :req-un [::compiled
                                         ::middleware]))
@@ -84,7 +90,8 @@
    :field-resolvers {}
    :type-aliases {}
    :middleware []
-   :schemas []})
+   :schemas []
+   :custom-scalars {}})
 
 (defn attach-field-resolver
   "Adds a field resolver into the provided pre-compiled data structure"
@@ -193,6 +200,12 @@
   {:pre [(s/valid? ::pre-compiled-data m)]}
   (assoc-in m [:type-aliases spec] alias))
 
+(defn attach-custom-scalar
+  "Attaches a custom scalar to the schema. See https://lacinia.readthedocs.io/en/latest/custom-scalars.html"
+  [m spec {:keys [_parse _serialize] :as sm}]
+  {:pre [(s/valid? ::pre-compiled-data m)]}
+  (assoc-in m [:custom-scalars spec] sm))
+
 ;;;;;
 
 (defn transform-input-object-key
@@ -232,25 +245,63 @@
        d))
    m))
 
+(defn prepare-custom-scalars
+  "Given a map of custom scalars, transform the map into a format Lacinia wants"
+  [sms]
+  (reduce-kv (fn [a k v] (assoc a (util/clj-name->gql-name k) v)) {} sms))
+
+(defn- replace-type
+  [m k]
+  (update m :type #(if (symbol? %)
+                     k
+                     (walk/postwalk
+                      (fn replace-type-inner [d]
+                        (if (and (seq? d) (symbol? (second d)))
+                          (list (first d) k)
+                          d))
+                      %))))
+
+(defn inject-custom-scalars
+  "Add custom scalars to the Lacinia schema and replace instances in the queries, mutations and input objects"
+  [m sms]
+  (let [psc (prepare-custom-scalars sms)
+        names (set (keys psc))
+        replace-type-fn #(walk/postwalk
+                          (fn [d]
+                            (if (s/valid? ::field-with-type d)
+                              (reduce-kv (fn [a k v] (if (contains? names k)
+                                                       (assoc a k (replace-type v k))
+                                                       (assoc a k v))) d d)
+                              d)) %)]
+    (-> m
+        (assoc :scalars psc)
+        (util/update-in* [:objects] replace-type-fn)
+        (util/update-in* [:queries] replace-type-fn)
+        (util/update-in* [:mutations] replace-type-fn)
+        (util/update-in* [:input-objects] replace-type-fn))))
+
 (defn generate
   "Takes pre-compiled data structure and converts it into a Lacinia schema"
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (let [opts          (select-keys m [:type-aliases])
-        queries       (generate-root-objects (:queries m) :query-spec :query opts)
-        mutations     (generate-root-objects (:mutations m) :mutation-spec :mutation opts)
-        input-objects (merge (extract-input-objects queries) (extract-input-objects mutations))]
+  (let [opts            (select-keys m [:type-aliases])
+        queries         (generate-root-objects (:queries m) :query-spec :query opts)
+        mutations       (generate-root-objects (:mutations m) :mutation-spec :mutation opts)
+        input-objects   (merge (extract-input-objects queries) (extract-input-objects mutations))
+        field-resolvers (not-empty (:field-resolvers m))
+        custom-scalars  (not-empty (:custom-scalars m))]
     (cond-> (apply leona-schema/combine-with-opts opts (:specs m))
-      queries                          (assoc :queries (-> queries
-                                                           (dissoc-input-objects)
-                                                           (replace-input-objects input-objects)))
-      mutations                        (assoc :mutations (-> mutations
-                                                             (dissoc-input-objects)
-                                                             (replace-input-objects input-objects)))
-      input-objects                    (assoc :input-objects (-> input-objects
-                                                                 (transform-input-object-keys)
-                                                                 (replace-input-objects input-objects)))
-      (not-empty (:field-resolvers m)) (inject-field-resolvers (:field-resolvers m)))))
+            queries         (assoc :queries (-> queries
+                                                (dissoc-input-objects)
+                                                (replace-input-objects input-objects)))
+            mutations       (assoc :mutations (-> mutations
+                                                  (dissoc-input-objects)
+                                                  (replace-input-objects input-objects)))
+            input-objects   (assoc :input-objects (-> input-objects
+                                                      (transform-input-object-keys)
+                                                      (replace-input-objects input-objects)))
+            field-resolvers (inject-field-resolvers field-resolvers)
+            custom-scalars  (inject-custom-scalars custom-scalars))))
 
 (defn compile
   "Generates a Lacinia schema from pre-compiled data structure and compiles it."

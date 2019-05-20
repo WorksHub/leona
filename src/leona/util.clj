@@ -43,3 +43,15 @@
       (replace-placeholders)
       (csk/->kebab-case)
       (keyword)))
+
+;; https://stackoverflow.com/a/26059795
+(defn contains-in?
+  [m ks]
+  (not= ::absent (get-in m ks ::absent)))
+
+(defn update-in*
+  "Only calls `update-in` if key exists"
+  [m ks f & args]
+  (if (contains-in? m ks)
+    (apply (partial update-in m ks f) args)
+    m))

@@ -254,7 +254,6 @@
     (is (= "R2D2" (get-in result [:data :droid :name])))
     (is (= (:id human) (get-in result [:data :droid :owner :id])))))
 
-
 (deftest field-resolver-included-test
   (s/def ::a int?)
   (s/def ::b (s/keys :req-un [::a]))
