@@ -90,6 +90,21 @@ In order to use the middleware you'll need to use leona's `execute` fn:
 
 `compiled` is the output of `(leona/compile)` and `execute-string` is a GraphQL query/mutation/etc.
 
+### Custom Scalars
+
+[Custom scalars](https://lacinia.readthedocs.io/en/latest/custom-scalars.html) are also supported.
+
+``` clojure
+(-> (leona/create)
+    ...
+    (leona/attach-custom-scalar ::date {:parse     #(tf/parse (tf/formatters :date-time) %)
+                                        :serialize #(tf/unparse (tf/formatters :date-time) %)}))
+```
+
+Anywhere the `::date` spec is referenced by an object, query or mutation, the `parse` and `serialize` fns will be used to transform the data. Be aware, however; whilst Leona will still perform its own internal spec validation, Lacinia will not perform validation for over-the-wire values. It's therefore important that your `parse` fn can handle incorrect data (unlike the one in the example!) and will still return something valid to Leona.
+
+
+
 ### Other
 
 If your spec cannot be inferred (automatically converted into an accurate schema) you can always override the inferred type by using the `spec` function from `spec-tools`:
