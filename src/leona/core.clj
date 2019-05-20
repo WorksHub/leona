@@ -229,62 +229,32 @@
   "Given a map and map of input objects, replaces instances of input-object types with their transformed form"
   [m input-objects]
   (walk/postwalk
-   (fn replace-input-object-types [d]
-     (if (and (map? d)
-              (contains? d :type))
-       (if (keyword? (:type d))
-         (if (some #(= (:type d) %) (keys input-objects))
-           (update d :type transform-input-object-key)
-           d)
-         (walk/postwalk
-          (fn replace-matched-type [n] ;; {:type ;..... }
-            (if (some #(= n %) (keys input-objects))
-              (transform-input-object-key n)
-              n))
-          d))
-       d))
-   m))
-
-(defn prepare-custom-scalars
-  "Given a map of custom scalars, transform the map into a format Lacinia wants"
-  [sms]
-  (reduce-kv (fn [a k v] (assoc a (util/clj-name->gql-name k) v)) {} sms))
-
-(defn- replace-type
-  [m k]
-  (update m :type #(if (symbol? %)
-                     k
-                     (walk/postwalk
-                      (fn replace-type-inner [d]
-                        (if (and (seq? d) (symbol? (second d)))
-                          (list (first d) k)
-                          d))
-                      %))))
+    (fn replace-input-object-types [d]
+      (if (and (map? d)
+               (contains? d :type))
+        (if (keyword? (:type d))
+          (if (some #(= (:type d) %) (keys input-objects))
+            (update d :type transform-input-object-key)
+            d)
+          (walk/postwalk
+            (fn replace-matched-type [n] ;; {:type ;..... }
+              (if (some #(= n %) (keys input-objects))
+                (transform-input-object-key n)
+                n))
+            d))
+        d))
+    m))
 
 (defn inject-custom-scalars
-  "Add custom scalars to the Lacinia schema and replace instances in the queries, mutations and input objects"
+  "Add custom scalars to the Lacinia schema"
   [m sms]
-  (let [psc (prepare-custom-scalars sms)
-        names (set (keys psc))
-        replace-type-fn #(walk/postwalk
-                          (fn [d]
-                            (if (s/valid? ::field-with-type d)
-                              (reduce-kv (fn [a k v] (if (contains? names k)
-                                                       (assoc a k (replace-type v k))
-                                                       (assoc a k v))) d d)
-                              d)) %)]
-    (-> m
-        (assoc :scalars psc)
-        (util/update-in* [:objects] replace-type-fn)
-        (util/update-in* [:queries] replace-type-fn)
-        (util/update-in* [:mutations] replace-type-fn)
-        (util/update-in* [:input-objects] replace-type-fn))))
+  (assoc m :scalars (reduce-kv (fn [a k v] (assoc a (util/clj-name->gql-name k) v)) {} sms)))
 
 (defn generate
   "Takes pre-compiled data structure and converts it into a Lacinia schema"
   [m]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (let [opts            (select-keys m [:type-aliases])
+  (let [opts            (select-keys m [:type-aliases :custom-scalars])
         queries         (generate-root-objects (:queries m) :query-spec :query opts)
         mutations       (generate-root-objects (:mutations m) :mutation-spec :mutation opts)
         input-objects   (merge (extract-input-objects queries) (extract-input-objects mutations))

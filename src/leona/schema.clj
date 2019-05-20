@@ -87,13 +87,20 @@
         (update :objects #(merge @new-objects %))
         (update :objects fix-lists))))
 
+(defn accept-spec-wrapper
+  "We use this function to intercept calls to 'accept-spec' and skip certain specs (e.g. where they are custom scalars)"
+  [dispatch spec children {:keys [custom-scalars] :as opts}]
+  (if (contains? custom-scalars spec)
+    {:type (non-null (util/clj-name->gql-name spec))}
+    (accept-spec dispatch spec children opts)))
+
 (defn transform
   ([spec]
    (transform spec nil))
   ([spec options]
    (binding [*context* (atom {})]
      (let [result (-> spec
-                      (visitor/visit accept-spec options)
+                      (visitor/visit accept-spec-wrapper options)
                       (second)
                       (fix-references))]
        (if-let [field (find-invalid-key result)]
