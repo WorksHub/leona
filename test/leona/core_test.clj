@@ -26,7 +26,8 @@
                                       :mutation-spec ::test/droid-mutation}}
             :field-resolvers {::test/owner {:resolver human-resolver}}
             :schemas []
-            :type-aliases {}}
+            :type-aliases {}
+            :custom-scalars {}}
            (-> (leona/create)
                (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
@@ -253,7 +254,6 @@
         result (leona/execute compiled-schema "query { droid(id: 1001) { name, operational_QMARK_, owner {id} }}")]
     (is (= "R2D2" (get-in result [:data :droid :name])))
     (is (= (:id human) (get-in result [:data :droid :owner :id])))))
-
 
 (deftest field-resolver-included-test
   (s/def ::a int?)
