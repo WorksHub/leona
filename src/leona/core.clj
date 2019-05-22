@@ -275,14 +275,16 @@
 
 (defn compile
   "Generates a Lacinia schema from pre-compiled data structure and compiles it."
-  [m]
-  {:pre [(s/valid? ::pre-compiled-data m)]}
-  (let [generated (-> m
-                      (generate)
-                      (add-external-schemas (:schemas m)))]
-    {:compiled   (lacinia-schema/compile generated)
-     :generated  generated
-     :middleware (:middleware m)}))
+  ([m]
+   (compile m nil))
+  ([m opts]
+   {:pre [(s/valid? ::pre-compiled-data m)]}
+   (let [generated (-> m
+                       (generate)
+                       (add-external-schemas (:schemas m)))]
+     {:compiled   (lacinia-schema/compile generated opts)
+      :generated  generated
+      :middleware (:middleware m)})))
 
 (defn execute
   "Executes Lacinia commands; adds middleware into the context which is required by the resolver wrapper"
