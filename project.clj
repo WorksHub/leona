@@ -1,4 +1,4 @@
-(defproject workshub/leona "0.1.10"
+(defproject workshub/leona "0.1.11-SNAPSHOT"
   :description "A pipeline for working with clojure.spec and GraphQL"
   :url "https://github.com/WorksHub/leona"
   :license {:name "Eclipse Public License"
