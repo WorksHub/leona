@@ -23,6 +23,10 @@
 
 (def ^:dynamic *context* nil)
 
+(defn spec-resolves-to-set?
+  [spec]
+  (some-> spec s/get-spec s/form resolve deref set?))
+
 (defn non-null
   [t]
   (cons 'non-null [t]))
@@ -225,7 +229,7 @@
   (if-let [n (spec-name-or-alias spec opts)]
     (if (valid-enum? children)
       (do
-        (swap! *context* assoc-in [:enums n] {:values children})
+        (swap! *context* assoc-in [:enums n] {:values (vec children)})
         {:type (non-null n)})
       (throw (Exception. (str "Encountered a set with invalid enum values: " children "\nThey must be GraphQL names: they may contain only letters, numbers, and underscores."))))
     (throw (Exception. (str "Encountered a set with no name: " children "\nEnsure sets are not wrapped (with `nilable` etc)")))))
@@ -378,8 +382,13 @@
         un-children)
       (select-keys data [:description]))))
 
-(defmethod accept-spec ::default [_ spec _ _]
-  (when spec ::invalid))
+(defmethod accept-spec ::default [_ spec _ opts]
+  (try
+    (if spec-resolves-to-set?
+      (accept-spec ::visitor/set spec (-> spec s/get-spec s/form resolve deref) opts)
+      (when spec ::invalid))
+    (catch Exception _
+      (when spec ::invalid))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

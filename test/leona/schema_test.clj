@@ -130,6 +130,13 @@
   (is (= {:objects {:test {:fields {:b {:type '(list :a)}}}} :enums {:a {:values [:baz :bar :foo]}}}
          (schema/transform ::test))))
 
+(deftest schema-enum-symbol-test
+  (def my-set #{:foo :bar :baz})
+  (s/def ::a my-set)
+  (s/def ::test (s/keys :req-un [::a]))
+  (is (= {:objects {:test {:fields {:a {:type '(non-null :a)}}}} :enums {:a {:values [:baz :bar :foo]}}}
+         (schema/transform ::test))))
+
 (deftest schema-req-un-reference-test
   (s/def ::a int?)
   (s/def ::b (s/keys :req-un [::a]))
