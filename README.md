@@ -121,6 +121,15 @@ If you'd like to add a description to the schema you can also use the `spec` fun
 (s/def ::object (st/spec string? {:description "This is my object}))
 ```
 
+Sometimes, you may want to add a custom object that’s not referred to in any of your queries, mutations or field resolvers (e.g., if you want to refer to it from an external schema attached via `attach-schema`). For this use case, Leona provides `attach-object`:
+
+```clojure
+(-> (leona/create)
+    ...
+    (leona/attach-object :some/object))
+```
+
+
 ## Notes
 
 The ordering of `attach-*` fns does not matter, other than for middleware.

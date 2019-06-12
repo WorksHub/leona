@@ -113,6 +113,12 @@
   {:pre [(s/valid? ::pre-compiled-data m)]}
   (update m :middleware conj middleware-fn))
 
+(defn attach-object
+  "Adds an object (not referred to by a query, mutation, or field resolver) into the provided pre-compiled data structure"
+  [m object-spec]
+  {:pre [(s/valid? ::pre-compiled-data m)]}
+  (update m :specs conj object-spec))
+
 (defn attach-query
   "Adds a query resolver into the provided pre-compiled data structure"
   #_([m resolver]

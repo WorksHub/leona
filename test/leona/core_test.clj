@@ -75,6 +75,17 @@
              :mutations
              (update :droid dissoc :resolve)))))
 
+(deftest attach-object-test
+  (is (= (-> (leona/create)
+             (leona/attach-object ::test/human)
+             (leona/generate)
+             (get-in [:objects :human :fields]))
+         '{:home_planet {:type (non-null String)},
+           :id {:type (non-null Int)},
+           :name {:type (non-null String)},
+           :appears_in {:type (non-null (list (non-null :episode)))},
+           :episode {:type :episode}})))
+
 (deftest query-valid-test
   (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
         compiled-schema (-> (leona/create)
