@@ -21,6 +21,7 @@
 (s/def ::field-resolver (s/keys :req-un [::resolver]))
 (s/def ::middleware (s/coll-of fn? :kind set))
 (s/def ::specs (s/coll-of keyword? :kind set))
+(s/def ::input-objects (s/coll-of keyword? :kind set))
 (s/def ::queries (s/map-of keyword? ::query))
 (s/def ::mutations (s/map-of keyword? ::mutation))
 (s/def ::field-resolvers (s/map-of keyword? ::field-resolver))
@@ -31,6 +32,7 @@
                                      ::serialize]))
 (s/def ::custom-scalars (s/map-of keyword? ::scalar-map))
 (s/def ::pre-compiled-data (s/keys :req-un [::specs
+                                            ::input-objects
                                             ::queries
                                             ::mutations
                                             ::field-resolvers
@@ -91,6 +93,7 @@
    :type-aliases {}
    :middleware []
    :schemas []
+   :input-objects #{}
    :custom-scalars {}})
 
 (defn attach-field-resolver
@@ -115,9 +118,11 @@
 
 (defn attach-object
   "Adds an object (not referred to by a query, mutation, or field resolver) into the provided pre-compiled data structure"
-  [m object-spec]
+  [m object-spec & {:keys [input?]}]
   {:pre [(s/valid? ::pre-compiled-data m)]}
-  (update m :specs conj object-spec))
+  (cond-> m
+    true (update :specs conj object-spec)
+    input? (update :input-objects conj object-spec)))
 
 (defn attach-query
   "Adds a query resolver into the provided pre-compiled data structure"
@@ -263,7 +268,10 @@
   (let [opts            (select-keys m [:type-aliases :custom-scalars])
         queries         (generate-root-objects (:queries m) :query-spec :query opts)
         mutations       (generate-root-objects (:mutations m) :mutation-spec :mutation opts)
-        input-objects   (merge (extract-input-objects queries) (extract-input-objects mutations))
+        input-objects   (apply merge
+                               (extract-input-objects queries)
+                               (extract-input-objects mutations)
+                               (map (comp :objects leona-schema/transform) (:input-objects m)))
         field-resolvers (not-empty (:field-resolvers m))
         custom-scalars  (not-empty (:custom-scalars m))]
     (cond-> (apply leona-schema/combine-with-opts opts (:specs m))
