@@ -126,9 +126,10 @@ Sometimes, you may want to add a custom object that’s not referred to in any o
 ```clojure
 (-> (leona/create)
     ...
-    (leona/attach-object :some/object))
+    (leona/attach-object :some/object :input? true))
 ```
 
+If you pass `:input?`, as in the example above, Leona will generate an input object (named `object_input`) in addition to an ordinary object.
 
 ## Notes
 

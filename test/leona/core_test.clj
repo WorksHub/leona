@@ -24,6 +24,7 @@
                                     :query-spec ::test/droid-query}}
             :mutations {::test/droid {:resolver droid-mutator
                                       :mutation-spec ::test/droid-mutation}}
+            :input-objects #{}
             :field-resolvers {::test/owner {:resolver human-resolver}}
             :schemas []
             :type-aliases {}
@@ -76,15 +77,16 @@
              (update :droid dissoc :resolve)))))
 
 (deftest attach-object-test
-  (is (= (-> (leona/create)
-             (leona/attach-object ::test/human)
-             (leona/generate)
-             (get-in [:objects :human :fields]))
-         '{:home_planet {:type (non-null String)},
-           :id {:type (non-null Int)},
-           :name {:type (non-null String)},
-           :appears_in {:type (non-null (list (non-null :episode)))},
-           :episode {:type :episode}})))
+  (let [schema (-> (leona/create)
+                   (leona/attach-object ::test/human :input? true)
+                   (leona/generate))
+        expected-object '{:home_planet {:type (non-null String)},
+                          :id {:type (non-null Int)},
+                          :name {:type (non-null String)},
+                          :appears_in {:type (non-null (list (non-null :episode)))},
+                          :episode {:type :episode}}]
+    (is (= (get-in schema [:objects :human :fields]) expected-object))
+    (is (= (get-in schema [:input-objects :human_input :fields]) expected-object))))
 
 (deftest query-valid-test
   (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
