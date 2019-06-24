@@ -1,14 +1,12 @@
 (ns leona.schema
   (:refer-clojure :exclude [list])
-  (:require [camel-snake-kebab.core :as csk]
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [clojure.walk :as walk]
-            [leona.util :as util]
-            [spec-tools.core :as st]
-            [spec-tools.impl :as impl]
-            [spec-tools.parse :as parse]
-            [spec-tools.visitor :as visitor]))
+  (:require
+    [clojure.spec.alpha :as s]
+    [clojure.walk :as walk]
+    [leona.util :as util]
+    [spec-tools.core :as st]
+    [spec-tools.impl :as impl]
+    [spec-tools.visitor :as visitor]))
 
 
 (def valid-type-override-syms
@@ -41,9 +39,8 @@
 
 (defn spec-name-or-alias
   [spec {:keys [type-aliases]}]
-  (-> type-aliases
-      (get spec (st/spec-name spec))
-      (util/clj-name->gql-name)))
+  (when-let [spec-name (get type-aliases spec (st/spec-name spec))]
+    (util/clj-name->gql-name spec-name)))
 
 (defn find-invalid-key
   ([m path]
@@ -231,8 +228,8 @@
       (do
         (swap! *context* assoc-in [:enums n] {:values (vec children)})
         {:type (non-null n)})
-      (throw (Exception. (str "Encountered a set with invalid enum values: " children "\nThey must be GraphQL names: they may contain only letters, numbers, and underscores."))))
-    (throw (Exception. (str "Encountered a set with no name: " children "\nEnsure sets are not wrapped (with `nilable` etc)")))))
+      (throw (Exception. (str "Encountered a spec " spec " with invalid enum values: " children "\nThey must be GraphQL names: they may contain only letters, numbers, and underscores."))))
+    (throw (Exception. (str "Encountered a set with no name: " spec "\nEnsure sets are not wrapped (with `nilable` etc)")))))
 
 (defn remove-non-null
   [f]
