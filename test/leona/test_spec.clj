@@ -31,3 +31,8 @@
 
 (s/def ::droid-mutation (s/keys :req-un [::id]
                                 :opt-un [::primary-functions]))
+
+(s/def ::test-query-enum #{:a :b :c})
+(s/def ::another-droid-query (s/keys :req-un [::id
+                                              ::test-query-enum]
+                                     :opt [::appears-in]))

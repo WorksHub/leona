@@ -101,6 +101,19 @@
     (is (= true (get-in result [:data :droid :operational_QMARK_])))
     (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
 
+(deftest query-with-enum-valid-test
+  (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
+        compiled-schema (-> (leona/create)
+                            (leona/attach-query ::test/another-droid-query ::test/droid droid-resolver)
+                            (leona/compile))
+        result (leona/execute compiled-schema
+                              (format "query { droid(id: 1001, %s: NEWHOPE, test_query_enum: b) { name, operational_QMARK_, %s }}"
+                                      appears-in-str
+                                      appears-in-str))]
+    (is (= "R2D2" (get-in result [:data :droid :name])))
+    (is (= true (get-in result [:data :droid :operational_QMARK_])))
+    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
+
 (deftest query-invalid-gql-test
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
