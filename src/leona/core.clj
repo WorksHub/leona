@@ -159,24 +159,26 @@
   [m access-key id opts]
   (->> m
        (map (fn [[k v]]
-              (let [objects (:objects (leona-schema/transform (get v access-key) opts))
+              (let [{:keys [objects enums]} (leona-schema/transform (get v access-key) opts)
                     args-object (util/clj-name->gql-name (get v access-key))]
                 (hash-map (util/clj-name->gql-name k)
-                          {:type (util/clj-name->gql-name k)
-                           :input-objects (dissoc objects args-object)
-                           :args (get-in objects [args-object :fields])
-                           :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}))))
+                          (merge {:type (util/clj-name->gql-name k)
+                                  :input-objects (dissoc objects args-object)
+                                  :args (get-in objects [args-object :fields])
+                                  :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}
+                                 (when (not-empty enums)
+                                   {:enums enums}))))))
        (apply merge)))
 
-(defn- extract-input-objects
-  "Extracts an input object map out of the result of generate-root-objects."
-  [m]
-  (apply merge (map :input-objects (vals m))))
+(defn- extract-all
+  "Extracts k out of the result of generate-root-objects."
+  [m k]
+  (apply merge (map k (vals m))))
 
-(defn- dissoc-input-objects
-  "Remove input objects from individual query/mutation maps."
-  [m]
-  (into {} (map (fn [[k v]] [k (dissoc v :input-objects)]) m)))
+(defn- dissoc-all
+  "Remove key from from individual query/mutation maps."
+  [m ky]
+  (into {} (map (fn [[k v]] [k (dissoc v ky)]) m)))
 
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
@@ -268,22 +270,28 @@
   (let [opts            (select-keys m [:type-aliases :custom-scalars])
         queries         (generate-root-objects (:queries m) :query-spec :query opts)
         mutations       (generate-root-objects (:mutations m) :mutation-spec :mutation opts)
-        input-objects   (apply merge
-                               (extract-input-objects queries)
-                               (extract-input-objects mutations)
-                               (map (comp :objects leona-schema/transform) (:input-objects m)))
+        input-objects   (not-empty (apply merge
+                                          (extract-all queries   :input-objects)
+                                          (extract-all mutations :input-objects)
+                                          (map (comp :objects leona-schema/transform) (:input-objects m))))
+        enums           (not-empty (apply merge
+                                          (extract-all queries   :enums)
+                                          (extract-all mutations :enums)))
         field-resolvers (not-empty (:field-resolvers m))
         custom-scalars  (not-empty (:custom-scalars m))]
     (cond-> (apply leona-schema/combine-with-opts opts (:specs m))
             queries         (assoc :queries (-> queries
-                                                (dissoc-input-objects)
+                                                (dissoc-all :enums)
+                                                (dissoc-all :input-objects)
                                                 (replace-input-objects input-objects)))
             mutations       (assoc :mutations (-> mutations
-                                                  (dissoc-input-objects)
+                                                  (dissoc-all :enums)
+                                                  (dissoc-all :input-objects)
                                                   (replace-input-objects input-objects)))
             input-objects   (assoc :input-objects (-> input-objects
                                                       (transform-input-object-keys)
                                                       (replace-input-objects input-objects)))
+            enums           (update :enums merge enums)
             field-resolvers (inject-field-resolvers field-resolvers)
             custom-scalars  (inject-custom-scalars custom-scalars))))
 
