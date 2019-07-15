@@ -131,6 +131,17 @@ Sometimes, you may want to add a custom object that’s not referred to in any o
 
 If you pass `:input?`, as in the example above, Leona will generate an input object (named `object_input`) in addition to an ordinary object.
 
+#### Type Aliases
+
+If you're working with a large amount of legacy specs, sometimes you can have name clashes that aren't easy to resolve. To help with this you can use 'type aliases' which will automatically replace instances of _type_ names wherever they are used.
+
+``` clojure
+(-> (leona/create)
+    ...
+    (leona/attach-type-alias :my.ns/type :my-type)
+```
+In this example, if `my.ns/type` is an object, the corresponding object would be created as `:my_type` instead, and any references to `my.ns/type` would automatically be updated to use the alias instead. Note, this doesn't refer the _field_ names, just the _types_.
+
 ## Notes
 
 The ordering of `attach-*` fns does not matter, other than for middleware.
