@@ -273,7 +273,7 @@
         input-objects   (not-empty (apply merge
                                           (extract-all queries   :input-objects)
                                           (extract-all mutations :input-objects)
-                                          (map (comp :objects leona-schema/transform) (:input-objects m))))
+                                          (map (comp :objects #(leona-schema/transform % opts)) (:input-objects m))))
         enums           (not-empty (apply merge
                                           (extract-all queries   :enums)
                                           (extract-all mutations :enums)))
