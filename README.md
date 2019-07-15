@@ -138,9 +138,9 @@ If you're working with a large amount of legacy specs, sometimes you can have na
 ``` clojure
 (-> (leona/create)
     ...
-    (leona/attach-type-alias :my.ns/type :my-type)
+    (leona/attach-type-alias :my.ns/type :mytype)
 ```
-In this example, if `my.ns/type` is an object, the corresponding object would be created as `:my_type` instead, and any references to `my.ns/type` would automatically be updated to use the alias instead. Note, this doesn't refer the _field_ names, just the _types_.
+In this example, if `my.ns/type` is an object, the corresponding object would be created as `:mytype` instead, and any references to `my.ns/type` would automatically be updated to use the alias instead. Note, this doesn't refer the _field_ names, just the _types_.
 
 ## Notes
 
