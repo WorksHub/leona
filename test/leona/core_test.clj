@@ -398,3 +398,20 @@
     (is (= #{:baz :qux} (set (get-in r [:generated :enums :selector :values]))))
     (let [r (leona/execute r "query { my_foo_object(selector: foo) { value }}")]
       (is (= 123 (get-in r [:data :my_foo_object :value]))))))
+
+;;
+
+(deftest no-args-query-test
+  (s/def ::no-args nil?)
+  (s/def ::result string?)
+  (s/def ::my-query (s/keys :req-un [::result]))
+
+  (defn my-query-resolver [ctx args value]
+    {:result "hello"})
+
+  (def schema
+    (-> (leona/create)
+        (leona/attach-query ::no-args ::my-query my-query-resolver)
+        (leona/compile)))
+  (let [r (leona/execute schema "{ my_query { result } }")]
+    (is (= "hello"  (get-in r [:data :my_query :result])))))

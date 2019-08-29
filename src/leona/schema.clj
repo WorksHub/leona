@@ -113,6 +113,11 @@
          (throw (Exception. (str "Spec could not be transformed: " field))) ;; TODO improve this error
          result)))))
 
+;; nil? special case for no-args queries
+(defmethod accept-spec 'clojure.core/nil? [_ spec _ opts]
+  (let [title (spec-name-or-alias spec opts)]
+    (non-null {:objects {title {:fields {}}}})))
+
 ;; any? (one-of [(return nil) (any-printable)])
 (defmethod accept-spec 'clojure.core/any? [_ _ _ _] {})
 
