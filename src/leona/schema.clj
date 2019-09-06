@@ -40,7 +40,7 @@
 (defn spec-name-or-alias
   [spec {:keys [type-aliases]}]
   (when-let [spec-name (get type-aliases spec (st/spec-name spec))]
-    (util/clj-name->gql-name spec-name)))
+    (util/clj-name->gql-object-name spec-name)))
 
 (defn find-invalid-key
   ([m path]
@@ -57,21 +57,21 @@
 (defn- extract-objects
   [a schema]
   (walk/postwalk
-   (fn [d]
-     (cond
-       (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
-       (update (second d) :type non-null)
-       ;;
-       (and (map? d) (contains? d :objects))
-       (let [k (-> d :objects keys first)
-             ref (some-> (get-in d [:objects k :ref]) util/clj-name->gql-name) ;; TODO removed qualifications, do we want to do this?
-             k' (or ref k)]
-         (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
-         {:type k'})
-       ;;
-       :else
-       d))
-   schema))
+    (fn [d]
+      (cond
+        (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
+        (update (second d) :type non-null)
+        ;;
+        (and (map? d) (contains? d :objects))
+        (let [k (-> d :objects keys first)
+              ref (some-> (get-in d [:objects k :ref]) util/clj-name->gql-object-name) ;; TODO removed qualifications, do we want to do this?
+              k' (or ref k)]
+          (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
+          {:type k'})
+        ;;
+        :else
+        d))
+    schema))
 
 (defn- fix-lists
   "Attempts to find types inside lists and removes the inner type map"
@@ -97,7 +97,7 @@
   "We use this function to intercept calls to 'accept-spec' and skip certain specs (e.g. where they are custom scalars)"
   [dispatch spec children {:keys [custom-scalars] :as opts}]
   (if (contains? custom-scalars spec)
-    {:type (non-null (util/clj-name->gql-name spec))}
+    {:type (non-null (util/clj-name->gql-object-name spec))}
     (accept-spec dispatch spec children opts)))
 
 (defn transform
@@ -221,19 +221,11 @@
 ;; bytes? (bytes)
 (defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'String)})
 
-(s/def ::valid-graphql-name #(re-matches #"^[_a-zA-Z][_a-zA-Z0-9]*$" %))
-(defn valid-enum?
-  [es]
-  (every? (fn [e] (and (or (string? e) (keyword? e))
-                       (s/valid? ::valid-graphql-name (name e)))) es))
-
 (defmethod accept-spec ::visitor/set [dispatch spec children opts]
   (if-let [n (spec-name-or-alias spec opts)]
-    (if (valid-enum? children)
-      (do
-        (swap! *context* assoc-in [:enums n] {:values (vec children)})
-        {:type (non-null n)})
-      (throw (Exception. (str "Encountered a spec " spec " with invalid enum values: " children "\nThey must be GraphQL names: they may contain only letters, numbers, and underscores."))))
+    (do
+      (swap! *context* assoc-in [:enums n] {:values (vec (map util/clj-name->gql-enum-name children))})
+      {:type (non-null n)})
     (throw (Exception. (str "Encountered a set with no name: " spec "\nEnsure sets are not wrapped (with `nilable` etc)")))))
 
 (defn remove-non-null

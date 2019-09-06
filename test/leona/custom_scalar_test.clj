@@ -22,7 +22,7 @@
             ::result-1
             ::result-2
             ::result-3)]
-    (is (= r {:objects {:result_1 {:fields {:date {:type '(non-null :date)}}}, :result_2 {:fields {:num {:type :num}}}, :result_3 {:fields {:bool {:type '(non-null Boolean)}}}}}))))
+    (is (= r {:objects {:Result1 {:fields {:date {:type '(non-null :Date)}}}, :Result2 {:fields {:num {:type :Num}}}, :Result3 {:fields {:bool {:type '(non-null Boolean)}}}}}))))
 
 (deftest custom-scalar-test
   (s/def ::date tt/date-time?)
@@ -38,14 +38,14 @@
                             (leona/attach-custom-scalar ::date {:parse #(tf/parse (tf/formatters :date-time) %)
                                                                 :serialize #(tf/unparse (tf/formatters :date-time) %)})
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($date: date!) { test(date: $date) { result {date} }}" {:date (str now-date)} {})]
-    (is (= '(non-null :date) (get-in compiled-schema [:generated :queries :test :args :date :type])))
-    (is (= '(non-null :date) (get-in compiled-schema [:generated :objects :result :fields :date :type])))
+        result (leona/execute compiled-schema "query test($date: Date!) { test(date: $date) { result {date} }}" {:date (str now-date)} {})]
+    (is (= '(non-null :Date) (get-in compiled-schema [:generated :queries :test :args :date :type])))
+    (is (= '(non-null :Date) (get-in compiled-schema [:generated :objects :Result :fields :date :type])))
     (let [d (get-in result [:data :test :result :date])]
       (is (= (str (t/plus now-date (t/years 1))) d)))))
 
 (deftest custom-scalar-test--indirect
-  (s/def ::date (st/spec tt/date-time? {:type '(custom :date)})) ;; <-- Notice the use of this super special secret type symbol
+  (s/def ::date (st/spec tt/date-time? {:type '(custom :Date)})) ;; <-- Notice the use of this super special secret type symbol
   (s/def ::indirect-date ::date)
   (s/def ::result (s/keys :req-un [::indirect-date]))
   (s/def ::test (s/keys :req-un [::result]))
@@ -59,10 +59,10 @@
                             (leona/attach-custom-scalar ::date {:parse #(tf/parse (tf/formatters :date-time) %)
                                                                 :serialize #(tf/unparse (tf/formatters :date-time) %)})
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($date: date!) { test(date: $date) { result {indirect_date} }}" {:date (str now-date)} {})]
-    (is (= '(non-null :date) (get-in compiled-schema [:generated :queries :test :args :date :type])))
-    (is (= :date (get-in compiled-schema [:generated :objects :result :fields :indirect_date :type])))
-    (let [d (get-in result [:data :test :result :indirect_date])]
+        result (leona/execute compiled-schema "query test($date: Date!) { test(date: $date) { result {indirectDate} }}" {:date (str now-date)} {})]
+    (is (= '(non-null :Date) (get-in compiled-schema [:generated :queries :test :args :date :type])))
+    (is (= :Date (get-in compiled-schema [:generated :objects :Result :fields :indirectDate :type])))
+    (let [d (get-in result [:data :test :result :indirectDate])]
       (is (= (str (t/plus now-date (t/years 1))) d)))))
 
 (deftest custom-scalar-test--collection
@@ -81,9 +81,9 @@
                             (leona/attach-custom-scalar ::date {:parse #(tf/parse (tf/formatters :date-time) %)
                                                                 :serialize #(tf/unparse (tf/formatters :date-time) %)})
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($date: date!) { test(date: $date) { result {dates} }}" {:date (str now-date)} {})]
-    (is (= '(non-null :date) (get-in compiled-schema [:generated :queries :test :args :date :type])))
-    (is (= '(non-null (list (non-null :date))) (get-in compiled-schema [:generated :objects :result :fields :dates :type])))
+        result (leona/execute compiled-schema "query test($date: Date!) { test(date: $date) { result {dates} }}" {:date (str now-date)} {})]
+    (is (= '(non-null :Date) (get-in compiled-schema [:generated :queries :test :args :date :type])))
+    (is (= '(non-null (list (non-null :Date))) (get-in compiled-schema [:generated :objects :Result :fields :dates :type])))
     (let [d (get-in result [:data :test :result :dates])]
       (is (= (str (t/plus now-date (t/years 1))) (first d)))
       (is (= (str (t/minus now-date (t/years 1))) (second d))))))
