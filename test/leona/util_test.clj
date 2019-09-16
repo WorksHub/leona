@@ -1,5 +1,6 @@
 (ns leona.util-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.test :refer :all]
             [leona.util :as util]))
 
 (deftest replace-punctuation-test
@@ -26,6 +27,24 @@
 
 (deftest clj-name->qualified-gql-name-test
   (is (= :hello (util/gql-name->clj-name :hello)))
-  (is (= (util/gql-name->clj-name :leona__util_test___hello)))
+  (is (= :leona.util-test/hello (util/gql-name->clj-name :leona__util_test___hello)))
   (is (= ::hello? (util/gql-name->clj-name :leona__util_test___hello_QMARK_)))
   (is (= :leona.util-test/hello? (util/gql-name->clj-name :leona__util_test___hello_QMARK_))))
+
+(deftest spec-keys-test
+  (s/def ::bar int?)
+  (s/def ::baz string?)
+  (s/def ::foo (s/keys :req-un [::bar]
+                       :opt-un [::baz]))
+  (is (= '(::bar ::baz) (util/spec-keys ::foo)))
+  (is (nil? (util/spec-keys int?)))
+  (is (nil? (util/spec-keys nil?))))
+
+(deftest find-case-match
+  (is (= :foo (util/find-case-match {:foo 123} :foo)))
+  (comment (is (= :fooBar (util/find-case-match {:fooBar 123} :foo_bar)))
+           (is (= :FooBar (util/find-case-match {:FooBar 123} :foo_bar)))
+           (is (= :FOO_BAR (util/find-case-match {:FOO_BAR 123} :foo_bar)))
+           (is (= :foo_bar (util/find-case-match {:foo_bar 123} :FooBar)))
+           (is (= :foo_bar (util/find-case-match {:foo_bar 123} :fooBar)))
+           (is (= :foo_bar (util/find-case-match {:foo_bar 123} :FOO_BAR)))))

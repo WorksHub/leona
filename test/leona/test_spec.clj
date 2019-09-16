@@ -7,7 +7,7 @@
 (s/def ::id (s/and int? odd?))
 (s/def ::name string?)
 (s/def ::operational? boolean?)
-(s/def ::episode #{:NEWHOPE :EMPIRE :JEDI})
+(s/def ::episode #{:new-hope :empire :jedi})
 (s/def ::appears-in (s/coll-of ::episode))
 
 (s/def ::human (s/keys

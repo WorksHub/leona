@@ -3,6 +3,7 @@
   (:require [camel-snake-kebab.core :as csk]
             [camel-snake-kebab.extras :as cske]
             [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia :as lacinia]
             [com.walmartlabs.lacinia.resolve :as lacinia-resolve]
@@ -54,21 +55,57 @@
   (let [error-map (merge {:message (or message (name key))} error-map)]
     (lacinia-resolve/resolve-as nil error-map)))
 
+(defn- enum-spec->values
+  "Attempts to resolve set values from a given spec. If the spec is NOT a set, will just return nil."
+  [spec]
+  (when (keyword? spec)
+    (let [form (s/form spec)]
+      (cond (set? form) form
+            (and (sequential? form)
+                 (= (first form) 'clojure.spec.alpha/coll-of))
+            (enum-spec->values (second form))))))
+
+(defn format-enums
+  [f m spec]
+  (reduce
+    (fn [a spec-key]
+      (let [s (enum-spec->values spec-key)
+            v (util/get* m spec-key)
+            k (and v (if (contains? m spec-key)
+                       spec-key
+                       (util/remove-ns* spec-key)))]
+        (if (and s v)
+          (let [new-v (if (sequential? v)
+                        (mapv #(f s %) v)
+                        (f s v))]
+            (assoc a k new-v))
+          a))) m (util/spec-keys spec)))
+
+(def format-input-enums
+  "Format enum values in the input."
+  (partial format-enums util/find-case-match))
+
+(def format-output-enums
+  "Format enum values in the output."
+  (partial format-enums (fn [_s v] (util/clj-name->qualified-gql-enum-name v))))
+
 (defn format-result
   "Format the results of a resolver"
-  [m]
-  (cske/transform-keys util/clj-name->qualified-gql-name m))
+  [m spec]
+  (->> (format-output-enums m spec)
+       (cske/transform-keys util/clj-name->qualified-gql-name)))
 
 (defn format-input
   "Format the input into a resolver"
-  [m]
-  (cske/transform-keys util/gql-name->clj-name m))
+  [m spec]
+  (-> (cske/transform-keys util/gql-name->clj-name m)
+      (format-input-enums spec)))
 
 (defn wrap-resolver
   "Used to wrap resolver fns provided by the user. This adds re-formatting in both directions and spec validation"
   [id resolver-fn input-spec result-spec]
   (fn [ctx input value]
-    (let [formatted-input (format-input input)]
+    (let [formatted-input (format-input input input-spec)]
       (if-not (s/valid? input-spec formatted-input)
         (error {:key (keyword (str "invalid-" (name id)))
                 :args (s/explain-data input-spec formatted-input)
@@ -78,7 +115,7 @@
               result (resolver)]
           (cond
             (instance? com.walmartlabs.lacinia.resolve.ResolverResultImpl result) result
-            (s/valid? result-spec result) (format-result result)
+            (s/valid? result-spec result) (format-result result result-spec)
             :else (error {:key (keyword (str "invalid-" (name id) "-result"))
                           :args (s/explain-data result-spec result)
                           :message (str "The " (name id) " result didn't conform to the internal spec: " result-spec)})))))))
@@ -160,9 +197,9 @@
   (->> m
        (map (fn [[k v]]
               (let [{:keys [objects enums]} (leona-schema/transform (get v access-key) opts)
-                    args-object (util/clj-name->gql-name (get v access-key))]
+                    args-object (util/clj-name->gql-object-name (get v access-key))]
                 (hash-map (util/clj-name->gql-name k)
-                          (merge {:type (util/clj-name->gql-name k)
+                          (merge {:type (util/clj-name->gql-object-name k)
                                   :input-objects (dissoc objects args-object)
                                   :args (get-in objects [args-object :fields])
                                   :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}
@@ -183,8 +220,9 @@
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
   [m field frs]
-  (if-let [fr (some (fn [[k v]] (when (= (util/clj-name->gql-name k) field)
-                                  (assoc v :spec k))) frs)]
+  (if-let [fr (some (fn [[k v]]
+                      (when (= (util/clj-name->gql-name k) field)
+                        (assoc v :spec k))) frs)]
     (assoc-in m [field :resolve] (wrap-resolver :field (:resolver fr) any? (:spec fr)))
     m))
 
@@ -195,11 +233,12 @@
   "Walks a set of objects, attempting to inject field resolvers into certain types"
   [m frs]
   (update
-   m :objects
-   #(walk/postwalk
-     (fn [d] (if (s/valid? ::field-with-type d)
-               (reduce-kv (fn [a k _] (inject-field-resolver a k frs)) d d)
-               d)) %)))
+    m :objects
+    #(walk/postwalk
+       (fn [d]
+         (if (s/valid? ::field-with-type d)
+           (reduce-kv (fn [a k _] (inject-field-resolver a k frs)) d d)
+           d)) %)))
 
 (defn add-external-schemas
   [generated schemas]
@@ -222,12 +261,12 @@
 ;;;;;
 
 (defn transform-input-object-key
-  "Adds a suffix '_input_' to the provided keyword k"
+  "Adds a suffix 'input' to the provided keyword k"
   [k]
-  (-> k
-      name
-      (str "_input")
-      keyword))
+  (let [k (if (str/starts-with? (str k) ":")
+            (-> k str (subs 1))
+            (str k))])
+  (util/clj-name->qualified-gql-object-name (str k " input")))
 
 (defn transform-input-object-keys
   "Given the map m, transforms all its keys using the transform-input-object-key function"
@@ -261,7 +300,7 @@
 (defn inject-custom-scalars
   "Add custom scalars to the Lacinia schema"
   [m sms]
-  (assoc m :scalars (reduce-kv (fn [a k v] (assoc a (util/clj-name->gql-name k) v)) {} sms)))
+  (assoc m :scalars (reduce-kv (fn [a k v] (assoc a (util/clj-name->gql-object-name k) v)) {} sms)))
 
 (defn generate
   "Takes pre-compiled data structure and converts it into a Lacinia schema"

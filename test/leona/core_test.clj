@@ -41,7 +41,7 @@
     1001 {:primary-functions ["courier" "fixer"]
           :id 1001
           :name "R2D2"
-          ::test/appears-in [:NEWHOPE :EMPIRE :JEDI]
+          ::test/appears-in [:new-hope :empire :jedi]
           :operational? true}
     1003 {:foo "bar"}
     nil))
@@ -51,14 +51,14 @@
   {:primary-functions primary-functions
    :id 1001
    :name "R2D2"
-   ::test/appears-in [:NEWHOPE :EMPIRE :JEDI]
+   ::test/appears-in [:new-hope :empire :jedi]
    :operational? true})
 
 (deftest generate-query-test
   (is (= {:droid
-          {:type :droid,
+          {:type :Droid,
            :args {:id {:type '(non-null Int)},
-                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :episode)}}}}
+                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :Episode)}}}}
          (-> (leona/create)
              (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
              (leona/generate)
@@ -67,9 +67,9 @@
 
 (deftest generate-mutation-test
   (is (= {:droid
-          {:type :droid,
+          {:type :Droid,
            :args {:id {:type '(non-null Int)},
-                  :primary_functions {:type '(list String)}}}}
+                  :primaryFunctions {:type '(list String)}}}}
          (-> (leona/create)
              (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
              (leona/generate)
@@ -80,13 +80,13 @@
   (let [schema (-> (leona/create)
                    (leona/attach-object ::test/human :input? true)
                    (leona/generate))
-        expected-object '{:home_planet {:type (non-null String)},
+        expected-object '{:homePlanet {:type (non-null String)},
                           :id {:type (non-null Int)},
                           :name {:type (non-null String)},
-                          :appears_in {:type (non-null (list (non-null :episode)))},
-                          :episode {:type :episode}}]
-    (is (= (get-in schema [:objects :human :fields]) expected-object))
-    (is (= (get-in schema [:input-objects :human_input :fields]) expected-object))))
+                          :appearsIn {:type (non-null (list (non-null :Episode)))},
+                          :episode {:type :Episode}}]
+    (is (= (get-in schema [:objects :Human :fields]) expected-object))
+    (is (= (get-in schema [:input-objects :HumanInput :fields]) expected-object))))
 
 (deftest query-valid-test
   (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
@@ -94,12 +94,12 @@
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
                             (leona/compile))
         result (leona/execute compiled-schema
-                              (format "query { droid(id: 1001, %s: NEWHOPE) { name, operational_QMARK_, %s }}"
+                              (format "query { droid(id: 1001, %s: NEW_HOPE) { name, operational_QMARK_, %s }}"
                                       appears-in-str
                                       appears-in-str))]
     (is (= "R2D2" (get-in result [:data :droid :name])))
     (is (= true (get-in result [:data :droid :operational_QMARK_])))
-    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
+    (is (= '(:NEW_HOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
 
 (deftest query-with-enum-valid-test
   (let [appears-in-str (name (util/clj-name->qualified-gql-name ::test/appears-in))
@@ -107,12 +107,12 @@
                             (leona/attach-query ::test/another-droid-query ::test/droid droid-resolver)
                             (leona/compile))
         result (leona/execute compiled-schema
-                              (format "query { droid(id: 1001, %s: NEWHOPE, test_query_enum: b) { name, operational_QMARK_, %s }}"
+                              (format "query { droid(id: 1001, %s: NEW_HOPE, testQueryEnum: B) { name, operational_QMARK_, %s }}"
                                       appears-in-str
                                       appears-in-str))]
     (is (= "R2D2" (get-in result [:data :droid :name])))
     (is (= true (get-in result [:data :droid :operational_QMARK_])))
-    (is (= '(:NEWHOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
+    (is (= '(:NEW_HOPE :EMPIRE :JEDI) (get-in result [:data :droid (keyword appears-in-str)])))))
 
 (deftest query-invalid-gql-test
   (let [compiled-schema (-> (leona/create)
@@ -146,10 +146,10 @@
                             (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
                             (leona/compile))
         result (leona/execute compiled-schema
-                              "mutation { droid(id: 1001, primary_functions: [\"beep\"]) { name, operational_QMARK_, primary_functions }}")]
+                              "mutation { droid(id: 1001, primaryFunctions: [\"beep\"]) { name, operational_QMARK_, primaryFunctions }}")]
     (is (= "R2D2"   (get-in result [:data :droid :name])))
     (is (= true     (get-in result [:data :droid :operational_QMARK_])))
-    (is (= ["beep"] (get-in result [:data :droid :primary_functions])))))
+    (is (= ["beep"] (get-in result [:data :droid :primaryFunctions])))))
 
 (deftest mutation-invalid-gql-test
   (let [compiled-schema (-> (leona/create)
@@ -190,7 +190,7 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($input: input_input!) { test(input: $input) { num }}" {:input {:num 1, :nums [2 3]}} {})]
+        result (leona/execute compiled-schema "query test($input: InputInput!) { test(input: $input) { num }}" {:input {:num 1, :nums [2 3]}} {})]
     (is (= 6 (get-in result [:data :test :num])))))
 
 ;;;;;
@@ -209,7 +209,7 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query2 ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($test_query: test_query_input!) { test(test_query: $test_query) { num }}"
+        result (leona/execute compiled-schema "query test($test_query: TestQueryInput!) { test(testQuery: $test_query) { num }}"
                               {:test_query {:input {:num 1, :nums [2 3]}}} {})]
     (is (= 6 (get-in result [:data :test :num])))))
 
@@ -230,7 +230,7 @@
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test-query ::test resolver)
                             (leona/compile))
-        result (leona/execute compiled-schema "query Test($inputs: [input_input!]!) { test(inputs: $inputs) { num }}" {:inputs [{:num 1, :nums [2 3]}]} {})]
+        result (leona/execute compiled-schema "query test($inputs: [InputInput!]!) { test(inputs: $inputs) { num }}" {:inputs [{:num 1, :nums [2 3]}]} {})]
     (is (= 6 (get-in result [:data :test :num])))))
 
 
@@ -271,7 +271,7 @@
   (let [human {:home-planet "Naboo"
                :id 123145
                :name "Jack Solo"
-               :appears-in #{:JEDI}}
+               :appears-in #{:jedi}}
         human-resolver (fn [ctx query value] human)
         compiled-schema (-> (leona/create)
                             (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
@@ -290,7 +290,7 @@
               (leona/attach-query ::test-query ::test droid-resolver)
               (leona/attach-field-resolver ::b (constantly {:a 123}))
               (leona/generate))]
-    (is (get-in r [:objects :test :fields :b :resolve]))))
+    (is (get-in r [:objects :Test :fields :b :resolve]))))
 
 (deftest field-resolver-coll-included-test
   (s/def ::a int?)
@@ -302,7 +302,7 @@
               (leona/attach-query ::test-query ::test droid-resolver)
               (leona/attach-field-resolver ::c (constantly {:a 123}))
               (leona/generate))]
-    (is (get-in r [:objects :test :fields :c :resolve]))))
+    (is (get-in r [:objects :Test :fields :c :resolve]))))
 
 (deftest field-resolver-coll-included-in-ref-test
   (s/def ::a int?)
@@ -314,7 +314,7 @@
               (leona/attach-query ::test-query ::test droid-resolver)
               (leona/attach-field-resolver ::a (constantly {:a 123}))
               (leona/generate))]
-    (is (get-in r [:objects :b :fields :a :resolve]))))
+    (is (get-in r [:objects :B :fields :a :resolve]))))
 
 ;;;;;;;
 
@@ -357,8 +357,8 @@
               (leona/attach-query ::foo-query-args ::my-foo-object (constantly nil))
               (leona/attach-type-alias :foo/status :foo-status)
               (leona/generate))]
-    (is (= '(non-null :foo_status) (get-in r [:objects :my_foo_object :fields :status :type])))
-    (is (= #{:a :b :c} (set (get-in r [:enums :foo_status :values]))))))
+    (is (= '(non-null :FooStatus) (get-in r [:objects :MyFooObject :fields :status :type])))
+    (is (= #{:A :B :C} (set (get-in r [:enums :FooStatus :values]))))))
 
 (deftest add-alias-medium-test
   (s/def :foo/status #{:a :b :c})
@@ -372,12 +372,12 @@
               (leona/attach-query ::query-args ::my-bar-object (constantly {:status :d}))
               (leona/attach-type-alias :foo/status :foo-status)
               (leona/compile))]
-    (is (= '(non-null :foo_status) (get-in r [:generated :objects :my_foo_object :fields :status :type])))
-    (is (= '(non-null :status) (get-in r [:generated :objects :my_bar_object :fields :status :type])))
-    (is (= #{:a :b :c} (set (get-in r [:generated :enums :foo_status :values]))))
-    (is (= #{:d :e :f} (set (get-in r [:generated :enums :status :values]))))
-    (let [r (leona/execute r "query { my_foo_object(my_query_var: 1001) { status }}")]
-      (is (= :a (get-in r [:data :my_foo_object :status]))))))
+    (is (= '(non-null :FooStatus) (get-in r [:generated :objects :MyFooObject :fields :status :type])))
+    (is (= '(non-null :Status) (get-in r [:generated :objects :MyBarObject :fields :status :type])))
+    (is (= #{:A :B :C} (set (get-in r [:generated :enums :FooStatus :values]))))
+    (is (= #{:D :E :F} (set (get-in r [:generated :enums :Status :values]))))
+    (let [r (leona/execute r "query { myFooObject(myQueryVar: 1001) { status }}")]
+      (is (= :A (get-in r [:data :myFooObject :status]))))))
 
 (deftest add-alias-in-query-test
   (s/def ::value int?)
@@ -392,26 +392,20 @@
               (leona/attach-query ::bar-query-args ::my-bar-object (constantly {:value 456 :selector :qux}))
               (leona/attach-type-alias :foo/selector :foo-status)
               (leona/compile))]
-    (is (= '(non-null :foo_status) (get-in r [:generated :objects :my_foo_object :fields :selector :type])))
-    (is (= '(non-null :foo_status) (get-in r [:generated :queries :my_foo_object :args :selector :type])))
-    (is (= #{:foo :bar} (set (get-in r [:generated :enums :foo_status :values]))))
-    (is (= #{:baz :qux} (set (get-in r [:generated :enums :selector :values]))))
-    (let [r (leona/execute r "query { my_foo_object(selector: foo) { value }}")]
-      (is (= 123 (get-in r [:data :my_foo_object :value]))))))
-
-;;
+    (is (= '(non-null :FooStatus) (get-in r [:generated :objects :MyFooObject :fields :selector :type])))
+    (is (= '(non-null :FooStatus) (get-in r [:generated :queries :myFooObject :args :selector :type])))
+    (is (= #{:FOO :BAR} (set (get-in r [:generated :enums :FooStatus :values]))))
+    (is (= #{:BAZ :QUX} (set (get-in r [:generated :enums :Selector :values]))))
+    (let [r (leona/execute r "query { myFooObject(selector: FOO) { value }}")]
+      (is (= 123 (get-in r [:data :myFooObject :value]))))))
 
 (deftest no-args-query-test
   (s/def ::no-args nil?)
   (s/def ::result string?)
   (s/def ::my-query (s/keys :req-un [::result]))
-
-  (defn my-query-resolver [ctx args value]
-    {:result "hello"})
-
-  (def schema
-    (-> (leona/create)
-        (leona/attach-query ::no-args ::my-query my-query-resolver)
-        (leona/compile)))
-  (let [r (leona/execute schema "{ my_query { result } }")]
-    (is (= "hello"  (get-in r [:data :my_query :result])))))
+  (let [my-query-resolver (fn [ctx args value] {:result "hello"})
+        schema(-> (leona/create)
+                  (leona/attach-query ::no-args ::my-query my-query-resolver)
+                  (leona/compile))
+        r (leona/execute schema "{ myQuery { result } }")]
+    (is (= "hello"  (get-in r [:data :myQuery :result])))))
