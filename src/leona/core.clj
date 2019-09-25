@@ -161,29 +161,58 @@
     true (update :specs conj object-spec)
     input? (update :input-objects conj object-spec)))
 
-(defn attach-query
+(defn check-for-docstr "Try to get docstring from the provided resolver-fn, in case it is a symbol, and resolve it to something that can be called"
+ [maybe-symbol]
+ (let [res (if (symbol? maybe-symbol)
+            (resolve maybe-symbol) maybe-symbol)]
+  (-> res meta :doc)))
+
+(declare parse-fdef-and-attach)
+
+(defn attach-query ;awkward and confusing: query (downstream) gets named off results-spec, unless passing fdef resolve-fn, resolver also (no matter how passed) is checked for docstr.
   "Adds a query resolver into the provided pre-compiled data structure"
-  #_([m resolver]
-     ;; TODO infer specs from fdef
-     )
-  ([m query-spec results-spec resolver]
+  ([m resolver-sym]
+   (parse-fdef-and-attach m resolver-sym attach-query))
+
+  ([m query-spec results-spec resolver & {:keys [doc]}]
    {:pre [(s/valid? ::pre-compiled-data m)]}
-   (-> m
+   (let [doc (or doc (check-for-docstr resolver))
+         common {:resolver (eval resolver) ;ensures it''s callable
+                 :query-spec query-spec}]
+    (-> m
        (update :specs   conj results-spec)
-       (update :queries assoc results-spec {:resolver resolver
-                                            :query-spec query-spec}))))
+       (update :queries assoc results-spec
+               (merge common (when doc {:description doc})))))))
 
 (defn attach-mutation
   "Adds a mutation resolver fn into the provided pre-compiled data structure"
-  #_([m resolver]
-     ;; TODO infer specs from fdef
-     )
-  ([m mutation-spec results-spec resolver]
+  ([m resolver-sym]
+   (parse-fdef-and-attach m resolver-sym attach-mutation))
+
+  ([m mutation-spec results-spec resolver & {:keys [doc]}]
    {:pre [(s/valid? ::pre-compiled-data m)]}
-   (-> m
+   (let [doc (or doc (check-for-docstr resolver))
+         common {:resolver (eval resolver)
+                 :mutation-spec mutation-spec}]
+    (-> m
        (update :specs   conj results-spec)
-       (update :mutations assoc results-spec {:resolver resolver
-                                              :mutation-spec mutation-spec}))))
+       (update :mutations assoc results-spec
+               (merge common (when doc {:description doc})))))))
+
+(defn parse-fdef-and-attach ;case could be made for combining attach -query -mutation and later -subscription if they're just routing?
+  "Passing symbol for fn with an fdef will extract both :args (in) and :ret (out) specs, name the operation, and of course resolve"
+  [m resolver-sym dispatch-to]
+  (let [spec-map (->> resolver-sym
+                      s/form     ;can call form directly without going through get-spec.
+                      rest
+                      (apply hash-map))
+        [in-spec out-spec]
+        (for [source-key [:args :ret] ;likely not wise to reuse these for the actual keyword ns, though "args" is accurate (as the specs are for variables, not queries or mutations per se, but that's nitpicky)
+              :let [spec (get spec-map source-key)
+                    spec-key (keyword (name source-key) (name resolver-sym))]]
+          (s/def-impl spec-key spec spec))] ; this is very hacky, but any constructed keyword gets symbol captured by s/def... and because we're only passing key-words we'd get the same back regardless
+    (dispatch-to m in-spec out-spec resolver-sym)))
+
 
 (defn attach-schema
   "Adds an external Lacinia schema into the provided pre-compiled data structure"
@@ -196,7 +225,7 @@
   [m access-key id opts]
   (->> m
        (map (fn [[k v]]
-              (let [{:keys [objects enums]} (leona-schema/transform (get v access-key) opts)
+              (let [{:keys [objects enums description]} (leona-schema/transform (get v access-key) opts)
                     args-object (util/clj-name->gql-object-name (get v access-key))]
                 (hash-map (util/clj-name->gql-name k)
                           (merge {:type (util/clj-name->gql-object-name k)
@@ -204,7 +233,9 @@
                                   :args (get-in objects [args-object :fields])
                                   :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}
                                  (when (not-empty enums)
-                                   {:enums enums}))))))
+                                   {:enums enums})
+                                 (when description
+                                  {:description description}))))))
        (apply merge)))
 
 (defn- extract-all
