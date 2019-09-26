@@ -219,7 +219,7 @@
 (defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'Int)})
 
 ;; bytes? (bytes)
-(defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/bytes? [_ _ _ _] {:type (non-null 'String)})
 
 (defmethod accept-spec ::visitor/set [dispatch spec children opts]
   (if-let [n (spec-name-or-alias spec opts)]
