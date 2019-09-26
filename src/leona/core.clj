@@ -220,7 +220,7 @@
   [m access-key id opts]
   (->> m
        (map (fn [[k v]]
-              (let [{:keys [objects enums description]} (leona-schema/transform (get v access-key) opts)
+              (let [{:keys [objects enums]} (leona-schema/transform (get v access-key) opts)
                     args-object (util/clj-name->gql-object-name (get v access-key))]
                 (hash-map (util/clj-name->gql-name k)
                           (merge {:type (util/clj-name->gql-object-name k)
@@ -229,8 +229,8 @@
                                   :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}
                                  (when (not-empty enums)
                                    {:enums enums})
-                                 (when description
-                                  {:description description}))))))
+                                 (when (:description v)
+                                  {:description (:description v)}))))))
        (apply merge)))
 
 (defn- extract-all
