@@ -161,57 +161,52 @@
     true (update :specs conj object-spec)
     input? (update :input-objects conj object-spec)))
 
-(defn check-for-docstr "Try to get docstring from the provided resolver-fn, in case it is a symbol, and resolve it to something that can be called"
- [maybe-symbol]
- (let [res (if (symbol? maybe-symbol)
-            (resolve maybe-symbol) maybe-symbol)]
-  (-> res meta :doc)))
 
-(declare parse-fdef-and-attach)
-
-(defn attach-query ;awkward and confusing: query (downstream) gets named off results-spec, unless passing fdef resolve-fn, resolver also (no matter how passed) is checked for docstr.
-  "Adds a query resolver into the provided pre-compiled data structure"
-  ([m resolver-sym]
-   (parse-fdef-and-attach m resolver-sym attach-query))
-
-  ([m query-spec results-spec resolver & {:keys [doc]}]
-   {:pre [(s/valid? ::pre-compiled-data m)]}
-   (let [doc (or doc (check-for-docstr resolver))
-         common {:resolver (eval resolver) ;ensures it''s callable
-                 :query-spec query-spec}]
-    (-> m
-       (update :specs   conj results-spec)
-       (update :queries assoc results-spec
-               (merge common (when doc {:description doc})))))))
-
-(defn attach-mutation
-  "Adds a mutation resolver fn into the provided pre-compiled data structure"
-  ([m resolver-sym]
-   (parse-fdef-and-attach m resolver-sym attach-mutation))
-
-  ([m mutation-spec results-spec resolver & {:keys [doc]}]
-   {:pre [(s/valid? ::pre-compiled-data m)]}
-   (let [doc (or doc (check-for-docstr resolver))
-         common {:resolver (eval resolver)
-                 :mutation-spec mutation-spec}]
-    (-> m
-       (update :specs   conj results-spec)
-       (update :mutations assoc results-spec
-               (merge common (when doc {:description doc})))))))
-
-(defn parse-fdef-and-attach ;case could be made for combining attach -query -mutation and later -subscription if they're just routing?
-  "Passing symbol for fn with an fdef will extract both :args (in) and :ret (out) specs, name the operation, and of course resolve"
-  [m resolver-sym dispatch-to]
-  (let [spec-map (->> resolver-sym
-                      s/form     ;can call form directly without going through get-spec.
+(defn parse-fdef
+  "Extract :args and :ret from fdef spec"
+  [resolver-var]
+  (let [spec-map (->> resolver-var
+                      s/get-spec
+                      s/form
                       rest
                       (apply hash-map))
         [in-spec out-spec]
-        (for [source-key [:args :ret] ;likely not wise to reuse these for the actual keyword ns, though "args" is accurate (as the specs are for variables, not queries or mutations per se, but that's nitpicky)
+        (for [source-key [:args :ret] ;XXX naming convention for fdef ns?
               :let [spec (get spec-map source-key)
-                    spec-key (keyword (name source-key) (name resolver-sym))]]
-          (s/def-impl spec-key spec spec))] ; this is very hacky, but any constructed keyword gets symbol captured by s/def... and because we're only passing key-words we'd get the same back regardless
-    (dispatch-to m in-spec out-spec resolver-sym)))
+                    spec-key (keyword (name source-key)
+                                      (name (symbol resolver-var)))]]
+          (s/def-impl spec-key spec spec))] ; feels very hacky, but not sure how else avoid symbol-capture by def...
+    [in-spec out-spec]))
+
+(defn attach-internal
+  "Attach a passed query or mutation"
+  ([m query-spec results-spec resolver-var kind & {:keys [doc]}]
+   {:pre [(s/valid? ::pre-compiled-data m)]}
+   (let [[q-spec-key location-key] [(keyword (str (name kind) "-spec"))
+                                    (case kind :query :queries :mutation :mutations)]
+         doc (or doc (:doc (meta resolver-var))) ;ah stick with f for now
+         common {:resolver (eval (symbol resolver-var))
+                 q-spec-key query-spec}]
+    (-> m
+       (update :specs       conj  results-spec)
+       (update location-key assoc results-spec
+               (merge common (when doc {:description doc})))))))
+
+(defmacro attach-query
+  "Adds a query resolver into the provided pre-compiled data structure"
+  ([m resolver]
+   `(let [[query-spec# results-spec#] (parse-fdef (var ~resolver))]
+     (attach-query ~m query-spec# results-spec# ~resolver)))
+  ([m query-spec results-spec resolver & {:keys [doc]}]
+   `(attach-internal ~m ~query-spec ~results-spec (var ~resolver) :query :doc ~doc)))
+
+(defmacro attach-mutation
+  "Adds a mutation resolver into the provided pre-compiled data structure"
+  ([m resolver]
+   `(let [[mutation-spec# results-spec#] (parse-fdef (var ~resolver))]
+     (attach-mutation ~m mutation-spec# results-spec# ~resolver)))
+  ([m mutation-spec results-spec resolver & {:keys [doc]}]
+   `(attach-internal ~m ~mutation-spec ~results-spec (var ~resolver) :mutation :doc ~doc)))
 
 
 (defn attach-schema
