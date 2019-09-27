@@ -161,22 +161,18 @@
     true (update :specs conj object-spec)
     input? (update :input-objects conj object-spec)))
 
-
-(defn parse-fdef
+(defn parse-fspec
   "Extract :args and :ret from fdef spec"
   [resolver-var]
   (let [spec-map (->> resolver-var
                       s/get-spec
                       s/form
                       rest
-                      (apply hash-map))
-        [in-spec out-spec]
-        (for [source-key [:args :ret] ;XXX naming convention for fdef ns?
-              :let [spec (get spec-map source-key)
-                    spec-key (keyword (name source-key)
-                                      (name (symbol resolver-var)))]]
-          (s/def-impl spec-key spec spec))] ; feels very hacky, but not sure how else avoid symbol-capture by def...
-    [in-spec out-spec]))
+                      (apply hash-map))]
+    (for [source-key [:args :ret] ;XXX naming convention for fdef ns? also avoiding duplicate object creation...
+          :let [spec (get spec-map source-key)]]
+      (eval `(s/def ~(keyword (name source-key) (name (symbol resolver-var)))
+                    ~spec)))))
 
 (defn attach-internal
   "Attach a passed query or mutation"
@@ -184,7 +180,7 @@
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (let [[q-spec-key location-key] [(keyword (str (name kind) "-spec"))
                                     (case kind :query :queries :mutation :mutations)]
-         doc (or doc (:doc (meta resolver-var))) ;ah stick with f for now
+         doc (or doc (:doc (meta resolver-var))) ; TODO clean up doc when source is fdef...
          common {:resolver (eval (symbol resolver-var))
                  q-spec-key query-spec}]
     (-> m
@@ -195,7 +191,7 @@
 (defmacro attach-query
   "Adds a query resolver into the provided pre-compiled data structure"
   ([m resolver]
-   `(let [[query-spec# results-spec#] (parse-fdef (var ~resolver))]
+   `(let [[query-spec# results-spec#] (parse-fspec (var ~resolver))]
      (attach-query ~m query-spec# results-spec# ~resolver)))
   ([m query-spec results-spec resolver & {:keys [doc]}]
    `(attach-internal ~m ~query-spec ~results-spec (var ~resolver) :query :doc ~doc)))
@@ -203,7 +199,7 @@
 (defmacro attach-mutation
   "Adds a mutation resolver into the provided pre-compiled data structure"
   ([m resolver]
-   `(let [[mutation-spec# results-spec#] (parse-fdef (var ~resolver))]
+   `(let [[mutation-spec# results-spec#] (parse-fspec (var ~resolver))]
      (attach-mutation ~m mutation-spec# results-spec# ~resolver)))
   ([m mutation-spec results-spec resolver & {:keys [doc]}]
    `(attach-internal ~m ~mutation-spec ~results-spec (var ~resolver) :mutation :doc ~doc)))
