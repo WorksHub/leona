@@ -161,29 +161,51 @@
     true (update :specs conj object-spec)
     input? (update :input-objects conj object-spec)))
 
-(defn attach-query
-  "Adds a query resolver into the provided pre-compiled data structure"
-  #_([m resolver]
-     ;; TODO infer specs from fdef
-     )
-  ([m query-spec results-spec resolver]
-   {:pre [(s/valid? ::pre-compiled-data m)]}
-   (-> m
-       (update :specs   conj results-spec)
-       (update :queries assoc results-spec {:resolver resolver
-                                            :query-spec query-spec}))))
+(defn parse-fspec
+  "Extract :args and :ret from fdef spec"
+  [resolver-var]
+  (let [spec-map (->> resolver-var
+                      s/get-spec
+                      s/form
+                      rest
+                      (apply hash-map))]
+    (for [source-key [:args :ret] ;TODO naming convention for fdef ns?
+          :let [spec (get spec-map source-key)]]
+      (if (keyword? spec)
+        spec ;stick with original def unless inline...
+        (eval `(s/def ~(keyword (symbol resolver-var)) ~spec))))))
 
-(defn attach-mutation
-  "Adds a mutation resolver fn into the provided pre-compiled data structure"
-  #_([m resolver]
-     ;; TODO infer specs from fdef
-     )
-  ([m mutation-spec results-spec resolver]
+(defn attach-internal
+  "Attach a passed query or mutation"
+  ([m input-spec results-spec resolver-var kind & {:keys [doc op-name]}]
    {:pre [(s/valid? ::pre-compiled-data m)]}
-   (-> m
-       (update :specs   conj results-spec)
-       (update :mutations assoc results-spec {:resolver resolver
-                                              :mutation-spec mutation-spec}))))
+   (let [access-key (case kind :queries :query-spec :mutations :mutation-spec)
+         doc (or doc (:doc (meta resolver-var))) ; TODO clean up doc when source is fdef...
+         common {:resolver (eval (symbol resolver-var))
+                 :operation-key (or op-name
+                                     results-spec ;current way - query and type get same name
+                                     #_(keyword (symbol resolver-var))) ;other way - query named after resolver, type after results-spec. Also already what happens with inline fspec.
+                 access-key input-spec}]
+    (-> m
+       (update :specs conj  results-spec)
+       (update kind   assoc results-spec
+               (merge common (when doc {:description doc})))))))
+
+(defmacro attach-query
+  "Adds a query resolver into the provided pre-compiled data structure"
+  ([m resolver]
+   `(let [[query-spec# results-spec#] (parse-fspec (var ~resolver))]
+     (attach-query ~m query-spec# results-spec# ~resolver)))
+  ([m query-spec results-spec resolver & {:keys [doc op-name]}]
+   `(attach-internal ~m ~query-spec ~results-spec (var ~resolver) :queries :doc ~doc :op-name ~op-name)))
+
+(defmacro attach-mutation
+  "Adds a mutation resolver into the provided pre-compiled data structure"
+  ([m resolver]
+   `(let [[mutation-spec# results-spec#] (parse-fspec (var ~resolver))]
+     (attach-mutation ~m mutation-spec# results-spec# ~resolver)))
+  ([m mutation-spec results-spec resolver & {:keys [doc op-name]}]
+   `(attach-internal ~m ~mutation-spec ~results-spec (var ~resolver) :mutations :doc ~doc :op-name ~op-name)))
 
 (defn attach-schema
   "Adds an external Lacinia schema into the provided pre-compiled data structure"
@@ -195,16 +217,20 @@
   "Generates root objects (mutations and queries) from the pre-compiled data structure"
   [m access-key id opts]
   (->> m
-       (map (fn [[k v]]
-              (let [{:keys [objects enums]} (leona-schema/transform (get v access-key) opts)
-                    args-object (util/clj-name->gql-object-name (get v access-key))]
-                (hash-map (util/clj-name->gql-name k)
-                          (merge {:type (util/clj-name->gql-object-name k)
+       (map (fn [[results-spec data]]
+              (let [input-spec (get data access-key)
+                    {:keys [objects enums]} (leona-schema/transform input-spec opts)
+                    args-object (util/clj-name->gql-object-name input-spec)
+                    op (util/clj-name->gql-name (:operation-key data))]
+                (hash-map op
+                          (merge {:type (util/clj-name->gql-object-name results-spec)
                                   :input-objects (dissoc objects args-object)
                                   :args (get-in objects [args-object :fields])
-                                  :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}
+                                  :resolve (wrap-resolver id (:resolver data) input-spec results-spec)}
                                  (when (not-empty enums)
-                                   {:enums enums}))))))
+                                   {:enums enums})
+                                 (when (:description data)
+                                  {:description (:description data)}))))))
        (apply merge)))
 
 (defn- extract-all
