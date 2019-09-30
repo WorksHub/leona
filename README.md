@@ -7,9 +7,11 @@ A toolbox designed to make working with GraphQL and clojure.spec a more pleasant
 
 Leona can build Lacinia schema just by telling it the queries and mutations you want to make. You can add resolvers for specific fields and add middleware inside the executor.
 
+PRs are welcome, and we often advertise issues (including rewards) over at [WorksHub](https://www.works-hub.com/issues/workshub-f0774). If you're interested and want some direction, **come and chat with us at #workshub on Clojurians Slack**.
+
 ## Change Log
 
-Major changes will be documented in the [changelog](CHANGELOG.md)
+Major changes will be documented in the [changelog](CHANGELOG.md)  
 **BREAKING CHANGES IN 0.2.x**
 
 ## Quick Usage
