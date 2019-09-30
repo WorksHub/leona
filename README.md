@@ -8,7 +8,8 @@ A toolbox designed to make working with GraphQL and clojure.spec a more pleasant
 Leona can build Lacinia schema just by telling it the queries and mutations you want to make. You can add resolvers for specific fields and add middleware inside the executor.
 
 ## Change Log
-Major changes will be documented in the [changelog](CHANGELOG.md) .   
+
+Major changes will be documented in the [changelog](CHANGELOG.md)
 **BREAKING CHANGES IN 0.2.x**
 
 ## Quick Usage
@@ -22,7 +23,7 @@ Major changes will be documented in the [changelog](CHANGELOG.md) .
                  (leona/attach-field-resolver ::field-in-object field-resolver-fn)
                  (leona/attach-middleware middeware-fn)
                  (leona/compile))]
-  (leona/execute schema "query { object(id: 1001) { id, name, field_in_object }}")
+  (leona/execute schema "query { myObject(id: 1001) { id, name, fieldInObject }}")
 ```
 
 ## Examples
@@ -133,7 +134,7 @@ Sometimes, you may want to add a custom object that’s not referred to in any o
     (leona/attach-object :some/object :input? true))
 ```
 
-If you pass `:input?`, as in the example above, Leona will generate an input object (named `object_input`) in addition to an ordinary object.
+If you pass `:input?`, as in the example above, Leona will generate an input object (named `objectInput`) in addition to an ordinary object.
 
 #### Type Aliases
 
@@ -142,13 +143,15 @@ If you're working with a large amount of legacy specs, sometimes you can have na
 ``` clojure
 (-> (leona/create)
     ...
-    (leona/attach-type-alias :my.ns/type :mytype)
+    (leona/attach-type-alias :my.ns/type :myType)
 ```
-In this example, if `my.ns/type` is an object, the corresponding object would be created as `:mytype` instead, and any references to `my.ns/type` would automatically be updated to use the alias instead. Note, this doesn't refer the _field_ names, just the _types_.
+In this example, if `my.ns/type` is an object, the corresponding object would be created as `:myType` instead, and any references to `my.ns/type` would automatically be updated to use the alias instead. Note, this doesn't refer the _field_ names, just the _types_.
 
 ## Notes
 
-The ordering of `attach-*` fns does not matter, other than for middleware.
+* The ordering of `attach-*` fns does not matter, other than for middleware.
+* By default, the casing used in the generated schema adheres to generally accepted GraphQL convention: `PascalCase` for object names, `camelCase` for fields, queries and mutations, and `SCREAMING_SNAKE_CASE` for enum values.
+
 
 ## License
 
