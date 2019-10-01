@@ -21,8 +21,10 @@
     (is (= {:specs #{::test/droid}
             :middleware [middleware]
             :queries {::test/droid {:resolver droid-resolver
+                                    :operation-key ::test/droid
                                     :query-spec ::test/droid-query}}
             :mutations {::test/droid {:resolver droid-mutator
+                                      :operation-key ::test/droid
                                       :mutation-spec ::test/droid-mutation}}
             :input-objects #{}
             :field-resolvers {::test/owner {:resolver human-resolver}}
