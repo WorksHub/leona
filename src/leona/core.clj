@@ -14,10 +14,13 @@
 
 (s/def ::query-spec keyword?)
 (s/def ::mutation-spec keyword?)
+(s/def ::operation-key keyword?)
 (s/def ::resolver fn?)
 (s/def ::query (s/keys :req-un [::resolver
+                                ::operation-key
                                 ::query-spec]))
 (s/def ::mutation (s/keys :req-un [::resolver
+                                   ::operation-key
                                    ::mutation-spec]))
 (s/def ::field-resolver (s/keys :req-un [::resolver]))
 (s/def ::middleware (s/coll-of fn? :kind set))
@@ -177,14 +180,13 @@
 
 (defn attach-internal
   "Attach a passed query or mutation"
-  ([m input-spec results-spec resolver-var kind & {:keys [doc op-name]}]
+  ([m input-spec results-spec resolver kind & {:keys [doc op-name]}]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (let [access-key (case kind :queries :query-spec :mutations :mutation-spec)
-         doc (or doc (:doc (meta resolver-var))) ; TODO clean up doc when source is fdef...
-         common {:resolver (eval (symbol resolver-var))
+         common {:resolver (eval (cond-> resolver (var? resolver) (symbol)))
                  :operation-key (or op-name
                                      results-spec ;current way - query and type get same name
-                                     #_(keyword (symbol resolver-var))) ;other way - query named after resolver, type after results-spec. Also already what happens with inline fspec.
+                                     #_(keyword (symbol resolver))) ;other way - query named after resolver, type after results-spec. Also already what happens with inline fspec.
                  access-key input-spec}]
     (-> m
        (update :specs conj  results-spec)
@@ -197,7 +199,9 @@
    `(let [[query-spec# results-spec#] (parse-fspec (var ~resolver))]
      (attach-query ~m query-spec# results-spec# ~resolver)))
   ([m query-spec results-spec resolver & {:keys [doc op-name]}]
-   `(attach-internal ~m ~query-spec ~results-spec (var ~resolver) :queries :doc ~doc :op-name ~op-name)))
+   `(let [doc#      (try (:doc (meta (resolve '~resolver))) (catch ClassCastException e#))
+          interned# (try (intern *ns* ~resolver) (catch ClassCastException e#))] ;also ensure let-local bindings get captured...
+     (attach-internal ~m ~query-spec ~results-spec (or interned# ~resolver) :queries :doc (or ~doc doc#) :op-name ~op-name))))
 
 (defmacro attach-mutation
   "Adds a mutation resolver into the provided pre-compiled data structure"
@@ -205,7 +209,9 @@
    `(let [[mutation-spec# results-spec#] (parse-fspec (var ~resolver))]
      (attach-mutation ~m mutation-spec# results-spec# ~resolver)))
   ([m mutation-spec results-spec resolver & {:keys [doc op-name]}]
-   `(attach-internal ~m ~mutation-spec ~results-spec (var ~resolver) :mutations :doc ~doc :op-name ~op-name)))
+   `(let [doc#      (try (:doc (meta (resolve '~resolver))) (catch ClassCastException e#))
+          interned# (try (intern *ns* ~resolver) (catch ClassCastException e#))]
+     (attach-internal ~m ~mutation-spec ~results-spec (or interned# ~resolver) :mutations :doc (or ~doc doc#) :op-name ~op-name))))
 
 (defn attach-schema
   "Adds an external Lacinia schema into the provided pre-compiled data structure"
