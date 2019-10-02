@@ -167,9 +167,8 @@
 (defn parse-fspec
   "Extract :args and :ret from fdef spec"
   [resolver-var]
-  (let [spec-map (->> resolver-var
-                      s/get-spec
-                      s/form
+  (let [to-spec (s/get-spec resolver-var)
+        spec-map (->> (try (s/form to-spec) (catch IllegalArgumentException e))
                       rest
                       (apply hash-map))]
     (for [source-key [:args :ret] ;TODO naming convention for fdef ns?
@@ -197,7 +196,7 @@
   "Adds a query resolver into the provided pre-compiled data structure"
   ([m resolver]
    `(let [[query-spec# results-spec#] (parse-fspec (var ~resolver))]
-     (attach-query ~m query-spec# results-spec# ~resolver)))
+     (attach-query ~m query-spec# results-spec# ~resolver :doc (:doc (meta (var ~resolver))))))
   ([m query-spec results-spec resolver & {:keys [doc op-name]}]
    `(let [doc#      (try (:doc (meta (resolve '~resolver))) (catch ClassCastException e#))
           interned# (try (intern *ns* ~resolver) (catch ClassCastException e#))] ;also ensure let-local bindings get captured...
@@ -207,7 +206,7 @@
   "Adds a mutation resolver into the provided pre-compiled data structure"
   ([m resolver]
    `(let [[mutation-spec# results-spec#] (parse-fspec (var ~resolver))]
-     (attach-mutation ~m mutation-spec# results-spec# ~resolver)))
+     (attach-mutation ~m mutation-spec# results-spec# ~resolver :doc (:doc (meta (var ~resolver))))))
   ([m mutation-spec results-spec resolver & {:keys [doc op-name]}]
    `(let [doc#      (try (:doc (meta (resolve '~resolver))) (catch ClassCastException e#))
           interned# (try (intern *ns* ~resolver) (catch ClassCastException e#))]

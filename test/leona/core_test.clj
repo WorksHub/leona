@@ -419,18 +419,17 @@
   (s/def ::yes true?)
   (s/def ::result (s/keys :req-un [::num ::yes]))
   (s/def ::args (s/keys :req-un [::num]))
-  (s/fdef res-defined :args ::args :ret ::result)
   (defn res-defined "A docstring"
     [ctx {:keys [num]} value]
     {:num (* num num num) :yes true})
+  (s/fdef res-defined :args ::args :ret ::result)
 
   (let [compiled-schema (-> (leona/create)
                             (leona/attach-query res-defined)
                             (leona/attach-mutation res-defined)
                             (leona/compile))
         result (leona/execute compiled-schema "{ result(num: 3) { num }}" {:num 3} {})]
-    ; (is (= "A docstring" (get-in compiled-schema [:generated :queries :result :description])))
-    ; ^ works from within same ns, otherwise not. hence (run-tests) works, lein test fails.
+    (is (= "A docstring" (get-in compiled-schema [:generated :queries :result :description])))
     (is (= 27 (get-in result [:data :result :num])))))
 
 (deftest inline-resolver-manual-description-test
