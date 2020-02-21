@@ -119,7 +119,7 @@ If your spec cannot be inferred (automatically converted into an accurate schema
 ```clojure
 (require '[spec-tools.core :as st])
 
-(s/def ::object (st/spec object? {:type 'String}))
+(s/def ::object (st/spec object? {:type '(non-null String})) ;; always use `non-null`; Leona will remove it if the field is optional
 ```
 
 If you'd like to add a description to the schema you can also use the `spec` function:

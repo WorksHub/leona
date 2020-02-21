@@ -278,10 +278,20 @@
   (is (= {:objects {:Test {:fields {:a {:type '(non-null Int) :description "FooBarBaz"}}}}}
          (schema/transform ::test))))
 
-(deftest schema-type-test
-  (s/def ::a (st/spec int? {:type 'Boolean}))
-  (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type 'Boolean}}}}}
+(deftest schema-type-test-req-un
+  (s/def ::a (st/spec int? {:type '(non-null Boolean)}))
+  (s/def ::b (st/spec int? {:type 'Boolean}))
+  (s/def ::test (s/keys :req-un [::a ::b]))
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null Boolean)}
+                                    ;; TODO ::b should be non-null as field is required.
+                                    ;; Workaround is always make field overrides use non-null
+                                    :b {:type 'Boolean}}}}}
+         (schema/transform ::test))))
+
+(deftest schema-type-test-opt-un
+  (s/def ::a (st/spec int? {:type '(non-null Boolean)}))
+  (s/def ::test (s/keys :opt-un [::a]))
+  (is (= {:objects {:Test {:fields {:a {:type 'Boolean}}}}} ;; notice non-null is removed due to opt-un
          (schema/transform ::test))))
 
 (deftest schema-type-enum-test
