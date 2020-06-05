@@ -9,6 +9,12 @@
                  [camel-snake-kebab "0.4.0"]]
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.10.0-alpha3"]
                                   [clj-time "0.14.2"]]}}
+  :release-tasks [["vcs" "assert-committed"]
+                  ["change" "version"
+                   "leiningen.release/bump-version" "release"]
+                  ["vcs" "commit"]
+                  ["vcs" "tag" "--no-sign"]
+                  ["deploy"]]
   :repositories [["releases" {:url   "https://clojars.org/repo"
                               :creds :gpg}]
                  ["snapshots" {:url   "https://clojars.org/repo"
