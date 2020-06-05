@@ -12,9 +12,9 @@
                                      :d {:objects {:D {:fields {:c {:type '(non-null String)}}}}}}}}}]
     (is (= {:objects {:Test {:fields {:b {:type :B},
                                       :d {:type :D}}}
-                      :B {:fields {:a {:type '(non-null Int)}}}
-                      :D {:fields {:c {:type '(non-null String)}}}}}
-           (schema/fix-references s)))))
+                      :B    {:fields {:a {:type '(non-null Int)}}}
+                      :D    {:fields {:c {:type '(non-null String)}}}}}
+           (schema/fix-references s {})))))
 
 (deftest valid-replacement-type?-test
   (is (schema/valid-replacement-type? 'String))
@@ -132,8 +132,8 @@
   (s/def ::c string?)
   (s/def ::d (s/keys :req-un [::c]))
   (s/def ::test (s/keys :req-un [::b ::d]))
-  (is (= {:objects {:B {:fields {:a {:type '(non-null Int)}}}
-                    :D {:fields {:c {:type '(non-null String)}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
+                    :D    {:fields {:c {:type '(non-null String)}}}
                     :Test {:fields {:b {:type '(non-null :B)},
                                     :d {:type '(non-null :D)}}}}}
          (schema/transform ::test))))
@@ -143,7 +143,7 @@
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::c (s/coll-of ::b))
   (s/def ::test (s/keys :opt-un [::c]))
-  (is (= {:objects {:B {:fields {:a {:type '(non-null Int)}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
                     :Test {:fields {:c {:type '(list :B)}}}}}
          (schema/transform ::test))))
 
@@ -152,7 +152,7 @@
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::c (s/coll-of ::b))
   (s/def ::test (s/keys :req-un [::c]))
-  (is (= {:objects {:B {:fields {:a {:type '(non-null Int)}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
                     :Test {:fields {:c {:type '(non-null (list (non-null :B)))}}}}}
          (schema/transform ::test))))
 
@@ -161,7 +161,7 @@
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::c ::b)
   (s/def ::test (s/keys :req-un [::c]))
-  (is (= {:objects {:B {:fields {:a {:type '(non-null Int)}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
                     :Test {:fields {:c {:type '(non-null :B)}}}}}
          (schema/transform ::test))))
 
@@ -170,7 +170,7 @@
   (s/def ::b (s/keys :opt-un [::a]))
   (s/def ::c ::b)
   (s/def ::test (s/keys :req-un [::c]))
-  (is (= {:objects {:B {:fields {:a {:type 'Int}}}
+  (is (= {:objects {:B    {:fields {:a {:type 'Int}}}
                     :Test {:fields {:c {:type '(non-null :B)}}}}}
          (schema/transform ::test))))
 
@@ -179,7 +179,7 @@
   (s/def ::b (s/keys :opt-un [::a]))
   (s/def ::c ::b)
   (s/def ::test (s/keys :opt-un [::c]))
-  (is (= {:objects {:B {:fields {:a {:type 'Int}}}
+  (is (= {:objects {:B    {:fields {:a {:type 'Int}}}
                     :Test {:fields {:c {:type :B},}}}}
          (schema/transform ::test))))
 
@@ -189,8 +189,8 @@
   (s/def ::c string?)
   (s/def ::d (s/keys :opt-un [::c]))
   (s/def ::test (s/keys :opt-un [::b ::d]))
-  (is (= {:objects {:B {:fields {:a {:type 'Int}}}
-                    :D {:fields {:c {:type 'String}}}
+  (is (= {:objects {:B    {:fields {:a {:type 'Int}}}
+                    :D    {:fields {:c {:type 'String}}}
                     :Test {:fields {:b {:type :B},
                                     :d {:type :D}}}}}
          (schema/transform ::test))))
@@ -251,18 +251,18 @@
    {:Human
     {:fields
      {:homePlanet {:type '(non-null String)},
-      :id {:type '(non-null Int)},
-      :name {:type '(non-null String)},
-      :appearsIn {:type '(non-null (list (non-null :Episode)))},
-      :episode {:type :Episode}}},
+      :id         {:type '(non-null Int)},
+      :name       {:type '(non-null String)},
+      :appearsIn  {:type '(non-null (list (non-null :Episode)))},
+      :episode    {:type :Episode}}},
     :Droid
     {:fields
-     {:primaryFunctions {:type '(non-null (list (non-null String)))},
-      :id {:type '(non-null Int)},
-      :name {:type '(non-null String)},
-      :owner      {:type :Human},
+     {:primaryFunctions                                     {:type '(non-null (list (non-null String)))},
+      :id                                                   {:type '(non-null Int)},
+      :name                                                 {:type '(non-null String)},
+      :owner                                                {:type :Human},
       (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(non-null (list (non-null :Episode)))},
-      :operational_QMARK_ {:type 'Boolean}}}},
+      :operational_QMARK_                                   {:type 'Boolean}}}},
    :enums {:Episode {:values [:JEDI :NEW_HOPE :EMPIRE]}}})
 
 (deftest comprehensive-schema-test
@@ -311,14 +311,14 @@
 (deftest type-alias-enum-test
   (s/def :foo/status #{:a :b :c})
   (s/def ::test (s/keys :req-un [:foo/status]))
-  (is (= {:objects {:Test {:fields {:status {:type '(non-null :FooStatus)}}}}
-          :enums {:FooStatus {:values [:C :B :A]}}}
-         (schema/transform ::test {:type-aliases {:foo/status :foo-status}}))))
+  (is (= {:objects {:Test {:fields {:status {:type '(non-null :foo_status)}}}}
+          :enums   {:foo_status {:values [:C :B :A]}}}
+         (schema/transform ::test {:type-aliases {:foo/status :foo_status}}))))
 
 (deftest type-alias-object-test
   (s/def ::foo int?)
   (s/def ::bar (s/keys :opt-un [::foo]))
   (s/def ::test (s/keys :req-un [::bar]))
-  (is (= {:objects {:Test {:fields {:bar {:type '(non-null :Baz)}}}
-                    :Baz {:fields {:foo {:type 'Int}}}}}
+  (is (= {:objects {:Test {:fields {:bar {:type '(non-null :baz)}}}
+                    :baz  {:fields {:foo {:type 'Int}}}}}
          (schema/transform ::test {:type-aliases {::bar :baz}}))))
