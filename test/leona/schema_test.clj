@@ -12,9 +12,9 @@
                                      :d {:objects {:d {:fields {:c {:type '(non-null String)}}}}}}}}}]
     (is (= {:objects {:test {:fields {:b {:type :b},
                                       :d {:type :d}}}
-                      :b {:fields {:a {:type '(non-null Int)}}}
-                      :d {:fields {:c {:type '(non-null String)}}}}}
-           (schema/fix-references s)))))
+                      :b    {:fields {:a {:type '(non-null Int)}}}
+                      :d    {:fields {:c {:type '(non-null String)}}}}}
+           (schema/fix-references s {})))))
 
 (deftest valid-enum?-test
   (is (schema/valid-enum? [:foo :bar :baz]))
