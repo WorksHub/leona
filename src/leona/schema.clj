@@ -55,23 +55,23 @@
    (find-invalid-key m [])))
 
 (defn- extract-objects
-  [a schema]
+  [options a schema]
   (walk/postwalk
-   (fn [d]
-     (cond
-       (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
-       (update (second d) :type non-null)
-       ;;
-       (and (map? d) (contains? d :objects))
-       (let [k (-> d :objects keys first)
-             ref (some-> (get-in d [:objects k :ref]) util/clj-name->gql-name) ;; TODO removed qualifications, do we want to do this?
-             k' (or ref k)]
-         (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
-         {:type k'})
-       ;;
-       :else
-       d))
-   schema))
+    (fn [d]
+      (cond
+        (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
+        (update (second d) :type non-null)
+        ;;
+        (and (map? d) (contains? d :objects))
+        (let [k   (-> d :objects keys first)
+              ref (some-> (get-in d [:objects k :ref]) (spec-name-or-alias options)) ;; TODO removed qualifications, do we want to do this?
+              k'  (or ref k)]
+          (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
+          {:type k'})
+        ;;
+        :else
+        d))
+    schema))
 
 (defn- fix-lists
   "Attempts to find types inside lists and removes the inner type map"
@@ -86,10 +86,10 @@
    schema))
 
 (defn fix-references
-  [schema]
+  [schema options]
   (let [new-objects (atom {})]
     (-> schema
-        (update :objects (partial extract-objects new-objects))
+        (update :objects (partial extract-objects options new-objects))
         (update :objects #(merge @new-objects %))
         (update :objects fix-lists))))
 
@@ -108,7 +108,7 @@
      (let [result (-> spec
                       (visitor/visit accept-spec-wrapper options)
                       (second)
-                      (fix-references))]
+                      (fix-references options))]
        (if-let [field (find-invalid-key result)]
          (throw (Exception. (str "Spec could not be transformed: " field))) ;; TODO improve this error
          result)))))
