@@ -39,8 +39,7 @@
 
 (defn spec-name-or-alias
   [spec {:keys [type-aliases]}]
-  (when-let [spec-name (get type-aliases spec (st/spec-name spec))]
-    (util/clj-name->gql-object-name spec-name)))
+  (get type-aliases spec (some-> spec (st/spec-name) (util/clj-name->gql-object-name))))
 
 (defn find-invalid-key
   ([m path]
@@ -48,14 +47,14 @@
      (some (fn [[k v]]
              (cond
                (= ::invalid v) {:field k :path path}
-               (map? v) (find-invalid-key v (conj path k))
-               :else nil))
+               (map? v)        (find-invalid-key v (conj path k))
+               :else           nil))
            m)))
   ([m]
    (find-invalid-key m [])))
 
 (defn- extract-objects
-  [a schema]
+  [options a schema]
   (walk/postwalk
     (fn [d]
       (cond
@@ -63,9 +62,10 @@
         (update (second d) :type non-null)
         ;;
         (and (map? d) (contains? d :objects))
-        (let [k (-> d :objects keys first)
-              ref (some-> (get-in d [:objects k :ref]) util/clj-name->gql-object-name) ;; TODO removed qualifications, do we want to do this?
-              k' (or ref k)]
+        (let [k   (-> d :objects keys first)
+              ;; TODO removed qualifications, do we want to do this?
+              ref (some-> (get-in d [:objects k :ref]) (spec-name-or-alias options))
+              k'  (or ref k)]
           (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
           {:type k'})
         ;;
@@ -77,19 +77,19 @@
   "Attempts to find types inside lists and removes the inner type map"
   [schema]
   (walk/postwalk
-   (fn [d]
-     (cond
-       (and (seq? d) (= (first d) 'list) (map? (second d)) (contains? (second d) :type))
-       (clojure.core/list 'list (:type (second d)))
-       ;;
-       :else d))
-   schema))
+    (fn [d]
+      (cond
+        (and (seq? d) (= (first d) 'list) (map? (second d)) (contains? (second d) :type))
+        (clojure.core/list 'list (:type (second d)))
+        ;;
+        :else d))
+    schema))
 
 (defn fix-references
-  [schema]
+  [schema options]
   (let [new-objects (atom {})]
     (-> schema
-        (update :objects (partial extract-objects new-objects))
+        (update :objects (partial extract-objects options new-objects))
         (update :objects #(merge @new-objects %))
         (update :objects fix-lists))))
 
@@ -108,7 +108,7 @@
      (let [result (-> spec
                       (visitor/visit accept-spec-wrapper options)
                       (second)
-                      (fix-references))]
+                      (fix-references options))]
        (if-let [field (find-invalid-key result)]
          (throw (Exception. (str "Spec could not be transformed: " field))) ;; TODO improve this error
          result)))))
@@ -152,10 +152,10 @@
 ;; double? (double)
 (defmethod accept-spec 'clojure.core/double? [_ _ _ _] {:type (non-null 'Float)})
 
-  ;; boolean? (boolean)
+;; boolean? (boolean)
 (defmethod accept-spec 'clojure.core/boolean? [_ _ _ _] {:type (non-null 'Boolean)})
 
-  ;; string? (string-alphanumeric)
+;; string? (string-alphanumeric)
 (defmethod accept-spec 'clojure.core/string? [_ _ _ _] {:type (non-null 'String)})
 
 ;; ident? (one-of [(keyword-ns) (symbol-ns)])

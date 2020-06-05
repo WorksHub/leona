@@ -197,12 +197,12 @@
   (->> m
        (map (fn [[k v]]
               (let [{:keys [objects enums]} (leona-schema/transform (get v access-key) opts)
-                    args-object (util/clj-name->gql-object-name (get v access-key))]
+                    args-object             (util/clj-name->gql-object-name (get v access-key))]
                 (hash-map (util/clj-name->gql-name k)
-                          (merge {:type (util/clj-name->gql-object-name k)
+                          (merge {:type          (leona-schema/spec-name-or-alias k opts)
                                   :input-objects (dissoc objects args-object)
-                                  :args (get-in objects [args-object :fields])
-                                  :resolve (wrap-resolver id (:resolver v) (get v access-key) k)}
+                                  :args          (get-in objects [args-object :fields])
+                                  :resolve       (wrap-resolver id (:resolver v) (get v access-key) k)}
                                  (when (not-empty enums)
                                    {:enums enums}))))))
        (apply merge)))
