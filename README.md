@@ -157,7 +157,7 @@ In this example, if `my.ns/type` is an object, the corresponding object would be
 
 ## License
 
-Copyright © 2018 Antony Woods, WorksHub Ltd.
+Copyright © 2020 WorksHub
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
