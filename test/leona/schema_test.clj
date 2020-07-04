@@ -36,94 +36,133 @@
 (deftest schema-req-test
   (s/def ::a int?)
   (s/def ::test (s/keys :req [::a]))
-  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a) {:type '(non-null Int)}}}}}
+  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a)
+                                    {:type '(non-null Int)
+                                     :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-with-nilable-test
   (s/def ::a (s/nilable int?))
   (s/def ::test (s/keys :req [::a]))
-  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a) {:type '(non-null Int)}}}}}
+  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a)
+                                    {:type '(non-null Int)
+                                     :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-un-test
   (s/def ::a string?)
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null String)}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null String)
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-un-with-nilable-test
   (s/def ::a (s/nilable string?))
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type 'String}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type 'String
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-test
   (s/def ::a int?)
   (s/def ::test (s/keys :opt [::a]))
-  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a) {:type 'Int}}}}}
+  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a)
+                                    {:type 'Int
+                                     :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-with-nilable-test
   (s/def ::a (s/nilable int?))
   (s/def ::test (s/keys :opt [::a]))
-  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a) {:type 'Int}}}}}
+  (is (= {:objects {:Test {:fields {(util/clj-name->qualified-gql-name ::a)
+                                    {:type 'Int
+                                     :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-un-test
   (s/def ::a string?)
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type 'String}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type 'String
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-un-with-nilable-test
   (s/def ::a (s/nilable string?))
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type 'String}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type 'String
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-list-test
   (s/def ::a (s/coll-of string?))
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null (list (non-null String)))}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null (list (non-null String)))
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-list-test
   (s/def ::a (s/coll-of string?))
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(list String)}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(list String)
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-enum-test
   (s/def ::a #{:foo :bar :baz})
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null :A)}}}} :enums {:A {:values [:BAZ :BAR :FOO]}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null :A)
+                                        :spec ::a}}
+                           :spec ::test}}
+          :enums {:A {:values [:BAZ :BAR :FOO]}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-enum-test
   (s/def ::a #{:foo :bar :baz})
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type :A}}}} :enums {:A {:values [:BAZ :BAR :FOO]}}}
+  (is (= {:objects {:Test {:fields {:a {:type :A
+                                        :spec ::a}}
+                           :spec ::test}}
+          :enums {:A {:values [:BAZ :BAR :FOO]}}}
          (schema/transform ::test))))
 
 (deftest schema-req-enum-list-test
   (s/def ::a #{:foo :bar :baz})
   (s/def ::b (s/coll-of ::a))
   (s/def ::test (s/keys :req-un [::b]))
-  (is (= {:objects {:Test {:fields {:b {:type '(non-null (list (non-null :A)))}}}} :enums {:A {:values [:BAZ :BAR :FOO]}}}
+  (is (= {:objects {:Test {:fields {:b {:type '(non-null (list (non-null :A)))
+                                        :spec ::b}}
+                           :spec ::test}}
+          :enums {:A {:values [:BAZ :BAR :FOO]}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-enum-list-test
   (s/def ::a #{:foo :bar :baz})
   (s/def ::b (s/coll-of ::a))
   (s/def ::test (s/keys :opt-un [::b]))
-  (is (= {:objects {:Test {:fields {:b {:type '(list :A)}}}} :enums {:A {:values [:BAZ :BAR :FOO]}}}
+  (is (= {:objects {:Test {:fields {:b {:type '(list :A)
+                                        :spec ::b}}
+                           :spec ::test}}
+          :enums {:A {:values [:BAZ :BAR :FOO]}}}
          (schema/transform ::test))))
 
 (deftest schema-enum-symbol-test
   (def my-set #{:foo :bar :baz})
   (s/def ::a my-set)
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null :A)}}}} :enums {:A {:values [:BAZ :BAR :FOO]}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null :A)
+                                        :spec ::a}}
+                           :spec ::test}}
+          :enums {:A {:values [:BAZ :BAR :FOO]}}}
          (schema/transform ::test))))
 
 (deftest schema-req-un-reference-test
@@ -132,10 +171,17 @@
   (s/def ::c string?)
   (s/def ::d (s/keys :req-un [::c]))
   (s/def ::test (s/keys :req-un [::b ::d]))
-  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
-                    :D    {:fields {:c {:type '(non-null String)}}}
-                    :Test {:fields {:b {:type '(non-null :B)},
-                                    :d {:type '(non-null :D)}}}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)
+                                        :spec ::a}}
+                           :spec ::b}
+                    :D    {:fields {:c {:type '(non-null String)
+                                        :spec ::c}}
+                           :spec ::d}
+                    :Test {:fields {:b {:type '(non-null :B)
+                                        :spec ::b},
+                                    :d {:type '(non-null :D)
+                                        :spec ::d}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-un-reference-opt-un-coll-test
@@ -143,8 +189,12 @@
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::c (s/coll-of ::b))
   (s/def ::test (s/keys :opt-un [::c]))
-  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
-                    :Test {:fields {:c {:type '(list :B)}}}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)
+                                        :spec ::a}}
+                           :spec ::b}
+                    :Test {:fields {:c {:type '(list :B)
+                                        :spec ::c}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-req-un-reference-req-un-coll-test
@@ -152,8 +202,12 @@
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::c (s/coll-of ::b))
   (s/def ::test (s/keys :req-un [::c]))
-  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
-                    :Test {:fields {:c {:type '(non-null (list (non-null :B)))}}}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)
+                                        :spec ::a}}
+                           :spec ::b}
+                    :Test {:fields {:c {:type '(non-null (list (non-null :B)))
+                                        :spec ::c}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-reference-name-req-req-test
