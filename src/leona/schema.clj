@@ -158,115 +158,141 @@
    :spec spec})
 
 ;; pos-int? (large-integer* {:min 1})
-(defmethod accept-spec 'clojure.core/pos-int? [_ spec _ _] {:type (non-null 'Int)
-                                                            :spec spec})
+(defmethod accept-spec 'clojure.core/pos-int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; neg-int? (large-integer* {:max -1})
-(defmethod accept-spec 'clojure.core/neg-int? [_ spec _ _] {:type (non-null 'Int)
-                                                            :spec spec})
+(defmethod accept-spec 'clojure.core/neg-int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; nat-int? (large-integer* {:min 0})
-(defmethod accept-spec 'clojure.core/nat-int? [_ spec _ _] {:type (non-null 'Int)
-                                                            :spec spec})
+(defmethod accept-spec 'clojure.core/nat-int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; float? (double)
-(defmethod accept-spec 'clojure.core/float? [_ spec _ _] {:type (non-null 'Float)
-                                                          :spec spec})
+(defmethod accept-spec 'clojure.core/float? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; double? (double)
-(defmethod accept-spec 'clojure.core/double? [_ spec _ _] {:type (non-null 'Float)
-                                                           :spec spec})
+(defmethod accept-spec 'clojure.core/double? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; boolean? (boolean)
-(defmethod accept-spec 'clojure.core/boolean? [_ spec _ _] {:type (non-null 'Boolean)
-                                                            :spec spec})
+(defmethod accept-spec 'clojure.core/boolean? [_ spec _ _]
+  {:type (non-null 'Boolean)
+   :spec spec})
 
 ;; string? (string-alphanumeric)
-(defmethod accept-spec 'clojure.core/string? [_ spec _ _] {:type (non-null 'String)
-                                                           :spec spec})
+(defmethod accept-spec 'clojure.core/string? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; ident? (one-of [(keyword-ns) (symbol-ns)])
-(defmethod accept-spec 'clojure.core/ident? [_ spec _ _] {:type (non-null 'String)
-                                                          :spec spec})
+(defmethod accept-spec 'clojure.core/ident? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; simple-ident? (one-of [(keyword) (symbol)])
-(defmethod accept-spec 'clojure.core/simple-ident? [_ spec _ _] {:type (non-null 'String)
-                                                                 :spec spec})
+(defmethod accept-spec 'clojure.core/simple-ident? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; qualified-ident? (such-that qualified? (one-of [(keyword-ns) (symbol-ns)]))
-(defmethod accept-spec 'clojure.core/qualified-ident? [_ spec _ _] {:type (non-null 'String)
-                                                                    :spec spec})
+(defmethod accept-spec 'clojure.core/qualified-ident? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; keyword? (keyword-ns)
-(defmethod accept-spec 'clojure.core/keyword? [_ spec _ _] {:type (non-null 'String)
-                                                            :spec spec})
+(defmethod accept-spec 'clojure.core/keyword? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; simple-keyword? (keyword)
-(defmethod accept-spec 'clojure.core/simple-keyword? [_ spec _ _] {:type (non-null 'String)
-                                                                   :spec spec})
+(defmethod accept-spec 'clojure.core/simple-keyword? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; qualified-keyword? (such-that qualified? (keyword-ns))
-(defmethod accept-spec 'clojure.core/qualified-keyword? [_ spec _ _] {:type (non-null 'String)
-                                                                      :spec spec})
+(defmethod accept-spec 'clojure.core/qualified-keyword? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; symbol? (symbol-ns)
-(defmethod accept-spec 'clojure.core/symbol? [_ spec _ _] {:type (non-null 'String)
-                                                           :spec spec})
+(defmethod accept-spec 'clojure.core/symbol? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; simple-symbol? (symbol)
-(defmethod accept-spec 'clojure.core/simple-symbol? [_ spec _ _] {:type (non-null 'String)
-                                                                  :spec spec})
+(defmethod accept-spec 'clojure.core/simple-symbol? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; qualified-symbol? (such-that qualified? (symbol-ns))
-(defmethod accept-spec 'clojure.core/qualified-symbol? [_ spec _ _] {:type (non-null 'String)
-                                                                     :spec spec})
+(defmethod accept-spec 'clojure.core/qualified-symbol? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; uuid? (uuid)
-(defmethod accept-spec 'clojure.core/uuid? [_ spec _ _] {:type (non-null 'ID)
-                                                         :spec spec})
+(defmethod accept-spec 'clojure.core/uuid? [_ spec _ _]
+  {:type (non-null 'ID)
+   :spec spec})
 
 ;; uri? (fmap #(java.net.URI/create (str "http://" % ".com")) (uuid))
-(defmethod accept-spec 'clojure.core/uri? [_ spec _ _] {:type (non-null 'String)
-                                                        :spec spec})
+(defmethod accept-spec 'clojure.core/uri? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; bigdec? (fmap #(BigDecimal/valueOf %)
 ;;               (double* {:infinite? false :NaN? false}))
-(defmethod accept-spec 'clojure.core/decimal? [_ spec _ _] {:type (non-null 'Float)
-                                                            :spec spec})
+(defmethod accept-spec 'clojure.core/decimal? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; inst? (fmap #(java.util.Date. %)
 ;;             (large-integer))
-(defmethod accept-spec 'clojure.core/inst? [_ spec _ _] {:type (non-null 'String)
-                                                         :spec spec})
-
+(defmethod accept-spec 'clojure.core/inst? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; char? (char)
-(defmethod accept-spec 'clojure.core/char? [_ spec _ _] {:type (non-null 'String)
-                                                         :spec spec})
+(defmethod accept-spec 'clojure.core/char? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; false? (return false)
-(defmethod accept-spec 'clojure.core/false? [_ spec _ _] {:type (non-null 'Boolean)
-                                                          :spec spec})
+(defmethod accept-spec 'clojure.core/false? [_ spec _ _]
+  {:type (non-null 'Boolean)
+   :spec spec})
 
 ;; true? (return true)
-(defmethod accept-spec 'clojure.core/true? [_ spec _ _] {:type (non-null 'Boolean)
-                                                         :spec spec})
+(defmethod accept-spec 'clojure.core/true? [_ spec _ _]
+  {:type (non-null 'Boolean)
+   :spec spec})
 
 ;; zero? (return 0)
-(defmethod accept-spec 'clojure.core/zero? [_ spec _ _] {:type (non-null 'Int)
-                                                         :spec spec})
+(defmethod accept-spec 'clojure.core/zero? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; rational? (one-of [(large-integer) (ratio)])
-(defmethod accept-spec 'clojure.core/rational? [_ spec _ _] {:type (non-null 'Float)
-                                                             :spec spec})
+(defmethod accept-spec 'clojure.core/rational? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; ratio? (such-that ratio? (ratio))
-(defmethod accept-spec 'clojure.core/ratio? [_ spec _ _] {:type (non-null 'Int)
-                                                          :spec spec})
+(defmethod accept-spec 'clojure.core/ratio? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; bytes? (bytes)
-(defmethod accept-spec 'clojure.core/ratio? [_ spec _ _] {:type (non-null 'String)
-                                                          :spec spec})
+(defmethod accept-spec 'clojure.core/ratio? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 (defmethod accept-spec ::visitor/set [dispatch spec children opts]
   (if-let [n (spec-name-or-alias spec opts)]
@@ -335,18 +361,21 @@
 
 (defmethod accept-spec 'clojure.spec.alpha/or [_ spec children _]
   (if-let [t (some #(when (not= ::invalid %) %) children)]
-    t
+    (assoc t :spec spec)
     (throw (Exception. (str "Error: 's/or' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
 
 (defmethod accept-spec 'clojure.spec.alpha/and [_ spec children _]
   (if-let [t (some #(when (not= ::invalid %) %) children)]
-    t
+    (assoc t :spec spec)
     (throw (Exception. (str "Error: 's/and' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
 
-(defmethod accept-spec 'clojure.spec.alpha/double-in [_ spec _ _] {:type (non-null 'Float)
-                                                                   :spec spec})
+(defmethod accept-spec 'clojure.spec.alpha/double-in [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
-(defmethod accept-spec 'clojure.spec.alpha/int-in [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.spec.alpha/int-in [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 (defmethod accept-spec 'clojure.spec.alpha/merge [_ spec children opts]
   (let [objects (not-empty (apply merge (map (comp :fields second first :objects second) children)))

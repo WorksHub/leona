@@ -281,8 +281,6 @@
                            :spec ::test}}}
          (schema/transform ::test))))
 
-;; <<<<<<<<<<<<<<<<<<<<<< BELOW
-
 (deftest schema-and-test
   "If we recognise a predicate we use that"
   (s/def ::a (s/and int? odd?))
@@ -302,7 +300,9 @@
   "If we recognise a predicate we use that"
   (s/def ::a (s/or :int int? :odd odd?))
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type 'Int}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type 'Int
+                                        :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-or-test-fail
@@ -310,7 +310,6 @@
   (s/def ::test (s/keys :opt-un [::a]))
   (is (thrown-with-msg? Exception #"Error: 's/or' must include a recognised predicate"
                         (schema/transform ::test))))
-
 
 (deftest schema-exception-test
   (s/def ::a map?)
