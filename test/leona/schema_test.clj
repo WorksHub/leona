@@ -10,8 +10,10 @@
 (deftest fix-references-test
   (let [s {:objects {:Test {:fields {:b {:objects {:B {:fields {:a {:type '(non-null Int)}}}}},
                                      :d {:objects {:D {:fields {:c {:type '(non-null String)}}}}}}}}}]
-    (is (= {:objects {:Test {:fields {:b {:type :B},
-                                      :d {:type :D}}}
+    (is (= {:objects {:Test {:fields {:b {:type :B
+                                          :spec nil},
+                                      :d {:type :D
+                                          :spec nil}}}
                       :B    {:fields {:a {:type '(non-null Int)}}}
                       :D    {:fields {:c {:type '(non-null String)}}}}}
            (schema/fix-references s {})))))
@@ -354,17 +356,19 @@
 (deftest schema-description-test
   (s/def ::a (st/spec int? {:description "FooBarBaz"}))
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null Int) :description "FooBarBaz"}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null Int) :description "FooBarBaz" :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-type-test-req-un
   (s/def ::a (st/spec int? {:type '(non-null Boolean)}))
   (s/def ::b (st/spec int? {:type 'Boolean}))
   (s/def ::test (s/keys :req-un [::a ::b]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null Boolean)}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null Boolean) :spec ::a}
                                     ;; TODO ::b should be non-null as field is required.
                                     ;; Workaround is always make field overrides use non-null
-                                    :b {:type 'Boolean}}}}}
+                                    :b {:type 'Boolean :spec ::b}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-type-test-opt-un

@@ -460,7 +460,7 @@
                   :spec spec)
            {:type replacement-type'
             :spec spec}))
-       un-children)
+       (assoc un-children :spec spec))
      (select-keys data [:description]))))
 
 (defmethod accept-spec ::default [_ spec _ opts]
