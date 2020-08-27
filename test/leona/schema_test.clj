@@ -236,15 +236,17 @@
                            :spec ::test}}}
          (schema/transform ::test))))
 
-;; <<<<<<<<<<<<<<<<<<<<<< BELOW
-
 (deftest schema-reference-name-opt-opt-test
   (s/def ::a int?)
   (s/def ::b (s/keys :opt-un [::a]))
   (s/def ::c ::b)
   (s/def ::test (s/keys :opt-un [::c]))
-  (is (= {:objects {:B    {:fields {:a {:type 'Int}}}
-                    :Test {:fields {:c {:type :B},}}}}
+  (is (= {:objects {:B    {:fields {:a {:type 'Int
+                                        :spec ::a}}
+                           :spec ::b}
+                    :Test {:fields {:c {:type :B
+                                        :spec ::c}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-opt-un-reference-test
@@ -253,11 +255,20 @@
   (s/def ::c string?)
   (s/def ::d (s/keys :opt-un [::c]))
   (s/def ::test (s/keys :opt-un [::b ::d]))
-  (is (= {:objects {:B    {:fields {:a {:type 'Int}}}
-                    :D    {:fields {:c {:type 'String}}}
-                    :Test {:fields {:b {:type :B},
-                                    :d {:type :D}}}}}
+  (is (= {:objects {:B    {:fields {:a {:type 'Int
+                                        :spec ::a}}
+                           :spec ::b}
+                    :D    {:fields {:c {:type 'String
+                                        :spec ::c}}
+                           :spec ::d}
+                    :Test {:fields {:b {:type :B
+                                        :spec ::b} ,
+                                    :d {:type :D
+                                        :spec ::d}}
+                           :spec ::test}}}
          (schema/transform ::test))))
+
+;; <<<<<<<<<<<<<<<<<<<<<< BELOW
 
 (deftest schema-merge-test
   (s/def ::a int?)
@@ -265,8 +276,11 @@
   (s/def ::c string?)
   (s/def ::d (s/keys :opt-un [::c]))
   (s/def ::test (s/merge ::b ::d))
-  (is (= {:objects {:Test {:fields {:a {:type 'Int},
-                                    :c {:type 'String}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type 'Int
+                                        :spec ::a},
+                                    :c {:type 'String
+                                        :spec ::c}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-and-test
