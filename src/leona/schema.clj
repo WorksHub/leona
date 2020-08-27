@@ -352,7 +352,8 @@
   (let [objects (not-empty (apply merge (map (comp :fields second first :objects second) children)))
         enums   (not-empty (apply merge (map (comp :enums second) children)))
         name    (spec-name-or-alias spec opts)]
-    (non-null (merge {:objects (hash-map name {:fields objects})}
+    (non-null (merge {:objects (hash-map name {:fields objects
+                                               :spec spec})}
                      (when enums
                        {:enums enums})))))
 
