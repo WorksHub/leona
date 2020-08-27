@@ -215,8 +215,12 @@
   (s/def ::b (s/keys :req-un [::a]))
   (s/def ::c ::b)
   (s/def ::test (s/keys :req-un [::c]))
-  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)}}}
-                    :Test {:fields {:c {:type '(non-null :B)}}}}}
+  (is (= {:objects {:B    {:fields {:a {:type '(non-null Int)
+                                        :spec ::a}}
+                           :spec ::b}
+                    :Test {:fields {:c {:type '(non-null :B)
+                                        :spec ::c}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-reference-name-opt-req-test
@@ -224,9 +228,15 @@
   (s/def ::b (s/keys :opt-un [::a]))
   (s/def ::c ::b)
   (s/def ::test (s/keys :req-un [::c]))
-  (is (= {:objects {:B    {:fields {:a {:type 'Int}}}
-                    :Test {:fields {:c {:type '(non-null :B)}}}}}
+  (is (= {:objects {:B    {:fields {:a {:type 'Int
+                                        :spec ::a}}
+                           :spec ::b}
+                    :Test {:fields {:c {:type '(non-null :B)
+                                        :spec ::c}}
+                           :spec ::test}}}
          (schema/transform ::test))))
+
+;; <<<<<<<<<<<<<<<<<<<<<< BELOW
 
 (deftest schema-reference-name-opt-opt-test
   (s/def ::a int?)

@@ -1,6 +1,7 @@
 (ns leona.schema
   (:refer-clojure :exclude [list])
   (:require [clojure.spec.alpha :as s]
+            [clojure.set :as set]
             [clojure.walk :as walk]
             [leona.util :as util]
             [spec-tools.core :as st]
@@ -54,21 +55,30 @@
   ([m]
    (find-invalid-key m [])))
 
+(defn clean-extracted-object
+  [d k]
+  (let [m (get-in d [:objects k])]
+    (if (and (contains? m :spec)
+             (contains? m :ref))
+      (-> m
+          (dissoc :spec)
+          (set/rename-keys {:ref :spec}))
+      m)))
+
 (defn- extract-objects
-  [options a schema]
+  [options extracted-objects schema]
   (walk/postwalk
    (fn [d]
      (cond
        (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
-       (do (println 1) (update (second d) :type non-null))
+       (update (second d) :type non-null)
        ;;
        (and (map? d) (contains? d :objects))
-       (let [_ (println 2)
-             k    (-> d :objects keys first)
+       (let [k    (-> d :objects keys first)
              spec (get-in d [:objects k :ref])
              ref  (some-> spec (spec-name-or-alias options))
              k'   (or ref k)]
-         (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
+         (swap! extracted-objects assoc k' (clean-extracted-object d k))
          {:type k'
           :spec (get-in d [:objects k :spec])})
        ;;
@@ -313,12 +323,12 @@
         spec-ref (s/get-spec spec)]
     (if title
       (non-null (merge {:objects (hash-map title
-                                           (merge {:fields (if (keyword? spec-ref)
-                                                             (make-optional-fields fields spec-ref)
-                                                             (make-optional-fields fields opt opt-un))
-                                                   :spec spec}
-                                                  (when (keyword? spec-ref)
-                                                    {:ref spec-ref})))}
+                                           (if (keyword? spec-ref)
+                                             {:fields (make-optional-fields fields spec-ref)
+                                              :spec spec
+                                              :ref spec-ref}
+                                             {:fields (make-optional-fields fields opt opt-un)
+                                              :spec spec}))}
                        (when enums
                          {:enums enums})))
       (throw (Exception. (str "Cannot process anonymous `s/keys` specs. Please provide a name: " spec) )))))
