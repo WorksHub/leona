@@ -331,19 +331,27 @@
   {:objects
    {:Human
     {:fields
-     {:homePlanet {:type '(non-null String)},
-      :id         {:type '(non-null Int)},
-      :name       {:type '(non-null String)},
-      :appearsIn  {:type '(non-null (list (non-null :Episode)))},
-      :episode    {:type :Episode}}},
+     {:homePlanet {:type '(non-null String) :spec ::test/home-planet},
+      :id         {:type '(non-null Int) :spec ::test/id},
+      :name       {:type '(non-null String) :spec ::test/name},
+      :appearsIn  {:type '(non-null (list (non-null :Episode))) :spec ::test/appears-in},
+      :episode    {:type :Episode :spec ::test/episode}}
+     :spec ::test/human},
     :Droid
     {:fields
-     {:primaryFunctions                                     {:type '(non-null (list (non-null String)))},
-      :id                                                   {:type '(non-null Int)},
-      :name                                                 {:type '(non-null String)},
-      :owner                                                {:type :Human},
-      (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(non-null (list (non-null :Episode)))},
-      :operational_QMARK_                                   {:type 'Boolean}}}},
+     {:primaryFunctions                                     {:type '(non-null (list (non-null String)))
+                                                             :spec ::test/primary-functions},
+      :id                                                   {:type '(non-null Int)
+                                                             :spec ::test/id},
+      :name                                                 {:type '(non-null String)
+                                                             :spec ::test/name},
+      :owner                                                {:type :Human
+                                                             :spec ::test/owner},
+      (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(non-null (list (non-null :Episode)))
+                                                             :spec ::test/appears-in},
+      :operational_QMARK_                                   {:type 'Boolean
+                                                             :spec ::test/operational?}}
+     :spec ::test/droid}},
    :enums {:Episode {:values [:JEDI :NEW_HOPE :EMPIRE]}}})
 
 (deftest comprehensive-schema-test
