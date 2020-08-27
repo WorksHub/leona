@@ -374,19 +374,22 @@
 (deftest schema-type-test-opt-un
   (s/def ::a (st/spec int? {:type '(non-null Boolean)}))
   (s/def ::test (s/keys :opt-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type 'Boolean}}}}} ;; notice non-null is removed due to opt-un
+  (is (= {:objects {:Test {:fields {:a {:type 'Boolean :spec ::a}}
+                           :spec ::test}}} ;; notice non-null is removed due to opt-un
          (schema/transform ::test))))
 
 (deftest schema-type-enum-test
   (s/def ::a (st/spec int? {:type '(enum :foo)}))
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type :foo}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type :foo :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 (deftest schema-type-kw-ignored-test
   (s/def ::a (st/spec int? {:type :foo}))
   (s/def ::test (s/keys :req-un [::a]))
-  (is (= {:objects {:Test {:fields {:a {:type '(non-null Int)}}}}}
+  (is (= {:objects {:Test {:fields {:a {:type '(non-null Int) :spec ::a}}
+                           :spec ::test}}}
          (schema/transform ::test))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -394,7 +397,8 @@
 (deftest type-alias-enum-test
   (s/def :foo/status #{:a :b :c})
   (s/def ::test (s/keys :req-un [:foo/status]))
-  (is (= {:objects {:Test {:fields {:status {:type '(non-null :foo_status)}}}}
+  (is (= {:objects {:Test {:fields {:status {:type '(non-null :foo_status) :spec :foo/status}}
+                           :spec ::test}}
           :enums   {:foo_status {:values [:C :B :A]}}}
          (schema/transform ::test {:type-aliases {:foo/status :foo_status}}))))
 
@@ -402,6 +406,8 @@
   (s/def ::foo int?)
   (s/def ::bar (s/keys :opt-un [::foo]))
   (s/def ::test (s/keys :req-un [::bar]))
-  (is (= {:objects {:Test {:fields {:bar {:type '(non-null :baz)}}}
-                    :baz  {:fields {:foo {:type 'Int}}}}}
+  (is (= {:objects {:Test {:fields {:bar {:type '(non-null :baz) :spec ::bar}}
+                           :spec ::test}
+                    :baz  {:fields {:foo {:type 'Int :spec ::foo}}
+                           :spec ::bar}}} ;; spec is bar, alias only applies to type
          (schema/transform ::test {:type-aliases {::bar :baz}}))))
