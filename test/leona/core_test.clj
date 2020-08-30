@@ -57,8 +57,10 @@
 (deftest generate-query-test
   (is (= {:droid
           {:type :Droid,
-           :args {:id                                                   {:type '(non-null Int)},
-                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :Episode)}}}}
+           :args {:id                                                   {:type '(non-null Int)
+                                                                         :spec ::test/id},
+                  (util/clj-name->qualified-gql-name ::test/appears-in) {:type '(list :Episode)
+                                                                         :spec ::test/appears-in}}}}
          (-> (leona/create)
              (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
              (leona/generate)
@@ -68,8 +70,10 @@
 (deftest generate-mutation-test
   (is (= {:droid
           {:type :Droid,
-           :args {:id               {:type '(non-null Int)},
-                  :primaryFunctions {:type '(list String)}}}}
+           :args {:id               {:type '(non-null Int)
+                                     :spec ::test/id},
+                  :primaryFunctions {:type '(list String)
+                                     :spec ::test/primary-functions}}}}
          (-> (leona/create)
              (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
              (leona/generate)
@@ -80,11 +84,16 @@
   (let [schema          (-> (leona/create)
                             (leona/attach-object ::test/human :input? true)
                             (leona/generate))
-        expected-object '{:homePlanet {:type (non-null String)},
-                          :id         {:type (non-null Int)},
-                          :name       {:type (non-null String)},
-                          :appearsIn  {:type (non-null (list (non-null :Episode)))},
-                          :episode    {:type :Episode}}]
+        expected-object '{:homePlanet {:type (non-null String)
+                                       :spec ::test/home-planet},
+                          :id         {:type (non-null Int)
+                                       :spec ::test/id},
+                          :name       {:type (non-null String)
+                                       :spec ::test/name},
+                          :appearsIn  {:type (non-null (list (non-null :Episode)))
+                                       :spec ::test/appears-in},
+                          :episode    {:type :Episode
+                                       :spec ::test/episode}}]
     (is (= (get-in schema [:objects :Human :fields]) expected-object))
     (is (= (get-in schema [:input-objects :HumanInput :fields]) expected-object))))
 
