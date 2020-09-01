@@ -325,6 +325,28 @@
               (leona/generate))]
     (is (get-in r [:objects :B :fields :a :resolve]))))
 
+(deftest field-resolver-type-alias-names-clash-test
+  (s/def :foo1/bar int?)
+  (s/def :foo2/bar int?)
+  (s/def ::a (s/keys :req-un [:foo1/bar]))
+  (s/def ::b (s/keys :req-un [:foo2/bar]))
+  (s/def ::test (s/keys :req-un [::a ::b]))
+  (s/def ::test-query (s/keys :opt-un [::a]))
+  (let [resolver-1 (constantly 1)
+        resolver-2 (constantly 2)
+        r (-> (leona/create)
+              (leona/attach-query ::test-query ::test droid-resolver)
+              (leona/attach-field-resolver :foo1/bar resolver-1)
+              (leona/attach-field-resolver :foo2/bar resolver-2)
+              (leona/attach-type-alias :foo1/bar :foo1_bar)
+              (leona/attach-type-alias :foo2/bar :foo2_bar)
+              (leona/generate))]
+    ;; even though :foo1/bar and :foo2/bar share the same unqualified name, they
+    ;; should retain their respective resolvers due to the improvement of using
+    ;; specs to match field resolvers, rather than names
+    (is (= (resolver-1) ((get-in r [:objects :A :fields :bar :resolve]) nil nil nil)))
+    (is (= (resolver-2) ((get-in r [:objects :B :fields :bar :resolve]) nil nil nil)))))
+
 ;;;;;;;
 
 (deftest basic-merge-schema-test
