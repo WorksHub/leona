@@ -220,11 +220,10 @@
 (defn- inject-field-resolver
   "Finds a field resolver from the provided collection and injects it into the appropriate place (object field)"
   [m field frs]
-  (if-let [fr (some (fn [[k v]]
-                      (when (= (util/clj-name->gql-name k) field)
-                        (assoc v :spec k))) frs)]
-    (assoc-in m [field :resolve] (wrap-resolver :field (:resolver fr) any? (:spec fr)))
-    m))
+  (let [field-spec (get-in m [field :spec])]
+    (if-let [fr (get frs field-spec)]
+      (assoc-in m [field :resolve] (wrap-resolver :field (:resolver fr) any? field-spec))
+      m)))
 
 (s/def ::field-with-type
   (s/map-of keyword? (s/and map? #(contains? % :type))))
@@ -335,7 +334,14 @@
             custom-scalars  (inject-custom-scalars custom-scalars))))
 
 (defn compile
-  "Generates a Lacinia schema from pre-compiled data structure and compiles it."
+  "Generates a Lacinia schema from pre-compiled data structure and compiles it.
+
+  Compile options:
+
+  :default-field-resolver
+
+  : Passed to Lacinia. A function that accepts a field name (as a keyword) and converts it into the
+    default field resolver; see Lacinia src"
   ([m]
    (compile m nil))
   ([m opts]

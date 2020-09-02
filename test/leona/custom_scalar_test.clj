@@ -17,12 +17,20 @@
   (s/def ::result-2 (s/keys :opt-un [::num]))
   (s/def ::result-3 (s/keys :req-un [::bool]))
   (let [r (leona-schema/combine-with-opts
-            {:custom-scalars {::date {:parse identity :serialize identity}
-                              ::num  {:parse identity :serialize identity}}}
-            ::result-1
-            ::result-2
-            ::result-3)]
-    (is (= r {:objects {:Result1 {:fields {:date {:type '(non-null :Date)}}}, :Result2 {:fields {:num {:type :Num}}}, :Result3 {:fields {:bool {:type '(non-null Boolean)}}}}}))))
+           {:custom-scalars {::date {:parse identity :serialize identity}
+                             ::num  {:parse identity :serialize identity}}}
+           ::result-1
+           ::result-2
+           ::result-3)]
+    (is (= r {:objects {:Result1 {:fields {:date {:type '(non-null :Date)
+                                                  :spec ::date}}
+                                  :spec ::result-1},
+                        :Result2 {:fields {:num {:type :Num
+                                                 :spec ::num}}
+                                  :spec ::result-2},
+                        :Result3 {:fields {:bool {:type '(non-null Boolean)
+                                                  :spec ::bool}}
+                                  :spec ::result-3}}}))))
 
 (deftest custom-scalar-test
   (s/def ::date tt/date-time?)

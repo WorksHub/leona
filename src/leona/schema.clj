@@ -1,12 +1,12 @@
 (ns leona.schema
   (:refer-clojure :exclude [list])
-  (:require
-    [clojure.spec.alpha :as s]
-    [clojure.walk :as walk]
-    [leona.util :as util]
-    [spec-tools.core :as st]
-    [spec-tools.impl :as impl]
-    [spec-tools.visitor :as visitor]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.set :as set]
+            [clojure.walk :as walk]
+            [leona.util :as util]
+            [spec-tools.core :as st]
+            [spec-tools.impl :as impl]
+            [spec-tools.visitor :as visitor]))
 
 
 (def valid-type-override-syms
@@ -30,12 +30,14 @@
   (cons 'non-null [t]))
 
 (defn list
-  ([t]
-   (list t true))
-  ([t nn?]
+  ([t s]
+   (list t s true))
+  ([t s nn?]
    (if (and (map? t) (contains? t :type))
-     {:type (non-null (cons 'list [(:type t)]))}
-     {:type (non-null (cons 'list [t]))})))
+     {:type (non-null (cons 'list [(:type t)]))
+      :spec (or s (:spec t))}
+     {:type (non-null (cons 'list [t]))
+      :spec s})))
 
 (defn spec-name-or-alias
   [spec {:keys [type-aliases]}]
@@ -53,37 +55,48 @@
   ([m]
    (find-invalid-key m [])))
 
+(defn clean-extracted-object
+  [d k]
+  (let [m (get-in d [:objects k])]
+    (if (and (contains? m :spec)
+             (contains? m :ref))
+      (-> m
+          (dissoc :spec)
+          (set/rename-keys {:ref :spec}))
+      m)))
+
 (defn- extract-objects
-  [options a schema]
+  [options extracted-objects schema]
   (walk/postwalk
-    (fn [d]
-      (cond
-        (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
-        (update (second d) :type non-null)
-        ;;
-        (and (map? d) (contains? d :objects))
-        (let [k   (-> d :objects keys first)
-              ;; TODO removed qualifications, do we want to do this?
-              ref (some-> (get-in d [:objects k :ref]) (spec-name-or-alias options))
-              k'  (or ref k)]
-          (swap! a assoc k' (dissoc (get-in d [:objects k]) :ref))
-          {:type k'})
-        ;;
-        :else
-        d))
-    schema))
+   (fn [d]
+     (cond
+       (and (seq? d) (= (first d) 'non-null) (map? (second d)) (contains? (second d) :type))
+       (update (second d) :type non-null)
+       ;;
+       (and (map? d) (contains? d :objects))
+       (let [k    (-> d :objects keys first)
+             spec (get-in d [:objects k :ref])
+             ref  (some-> spec (spec-name-or-alias options))
+             k'   (or ref k)]
+         (swap! extracted-objects assoc k' (clean-extracted-object d k))
+         {:type k'
+          :spec (get-in d [:objects k :spec])})
+       ;;
+       :else
+       d))
+   schema))
 
 (defn- fix-lists
   "Attempts to find types inside lists and removes the inner type map"
   [schema]
   (walk/postwalk
-    (fn [d]
-      (cond
-        (and (seq? d) (= (first d) 'list) (map? (second d)) (contains? (second d) :type))
-        (clojure.core/list 'list (:type (second d)))
-        ;;
-        :else d))
-    schema))
+   (fn [d]
+     (cond
+       (and (seq? d) (= (first d) 'list) (map? (second d)) (contains? (second d) :type))
+       (clojure.core/list 'list (:type (second d)))
+       ;;
+       :else d))
+   schema))
 
 (defn fix-references
   [schema options]
@@ -97,7 +110,8 @@
   "We use this function to intercept calls to 'accept-spec' and skip certain specs (e.g. where they are custom scalars)"
   [dispatch spec children {:keys [custom-scalars] :as opts}]
   (if (contains? custom-scalars spec)
-    {:type (non-null (util/clj-name->gql-object-name spec))}
+    {:type (non-null (util/clj-name->gql-object-name spec))
+     :spec spec}
     (accept-spec dispatch spec children opts)))
 
 (defn transform
@@ -125,107 +139,167 @@
 (defmethod accept-spec 'clojure.core/some? [_ _ _ _] {})
 
 ;;; number? (one-of [(large-integer) (double)])
-(defmethod accept-spec 'clojure.core/number? [_ _ _ _] {:type (non-null 'Float)})
+(defmethod accept-spec 'clojure.core/number? [_ spec _ _] {:type (non-null 'Float)
+                                                           :spec spec})
 
-(defmethod accept-spec 'clojure.core/pos? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/pos? [_ spec _ _] {:type (non-null 'Int)
+                                                        :spec spec})
 
-(defmethod accept-spec 'clojure.core/neg? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/neg? [_ spec _ _] {:type (non-null 'Int)
+                                                        :spec spec})
 
 ;; integer? (large-integer)
-(defmethod accept-spec 'clojure.core/integer? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/integer? [_ spec _ _] {:type (non-null 'Int)
+                                                            :spec spec})
 
 ;; int? (large-integer)
-(defmethod accept-spec 'clojure.core/int? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; pos-int? (large-integer* {:min 1})
-(defmethod accept-spec 'clojure.core/pos-int? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/pos-int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; neg-int? (large-integer* {:max -1})
-(defmethod accept-spec 'clojure.core/neg-int? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/neg-int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; nat-int? (large-integer* {:min 0})
-(defmethod accept-spec 'clojure.core/nat-int? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/nat-int? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; float? (double)
-(defmethod accept-spec 'clojure.core/float? [_ _ _ _] {:type (non-null 'Float)})
+(defmethod accept-spec 'clojure.core/float? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; double? (double)
-(defmethod accept-spec 'clojure.core/double? [_ _ _ _] {:type (non-null 'Float)})
+(defmethod accept-spec 'clojure.core/double? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; boolean? (boolean)
-(defmethod accept-spec 'clojure.core/boolean? [_ _ _ _] {:type (non-null 'Boolean)})
+(defmethod accept-spec 'clojure.core/boolean? [_ spec _ _]
+  {:type (non-null 'Boolean)
+   :spec spec})
 
 ;; string? (string-alphanumeric)
-(defmethod accept-spec 'clojure.core/string? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/string? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; ident? (one-of [(keyword-ns) (symbol-ns)])
-(defmethod accept-spec 'clojure.core/ident? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/ident? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; simple-ident? (one-of [(keyword) (symbol)])
-(defmethod accept-spec 'clojure.core/simple-ident? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/simple-ident? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; qualified-ident? (such-that qualified? (one-of [(keyword-ns) (symbol-ns)]))
-(defmethod accept-spec 'clojure.core/qualified-ident? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/qualified-ident? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; keyword? (keyword-ns)
-(defmethod accept-spec 'clojure.core/keyword? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/keyword? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; simple-keyword? (keyword)
-(defmethod accept-spec 'clojure.core/simple-keyword? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/simple-keyword? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; qualified-keyword? (such-that qualified? (keyword-ns))
-(defmethod accept-spec 'clojure.core/qualified-keyword? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/qualified-keyword? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; symbol? (symbol-ns)
-(defmethod accept-spec 'clojure.core/symbol? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/symbol? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; simple-symbol? (symbol)
-(defmethod accept-spec 'clojure.core/simple-symbol? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/simple-symbol? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; qualified-symbol? (such-that qualified? (symbol-ns))
-(defmethod accept-spec 'clojure.core/qualified-symbol? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/qualified-symbol? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; uuid? (uuid)
-(defmethod accept-spec 'clojure.core/uuid? [_ _ _ _] {:type (non-null 'ID)})
+(defmethod accept-spec 'clojure.core/uuid? [_ spec _ _]
+  {:type (non-null 'ID)
+   :spec spec})
 
 ;; uri? (fmap #(java.net.URI/create (str "http://" % ".com")) (uuid))
-(defmethod accept-spec 'clojure.core/uri? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/uri? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; bigdec? (fmap #(BigDecimal/valueOf %)
 ;;               (double* {:infinite? false :NaN? false}))
-(defmethod accept-spec 'clojure.core/decimal? [_ _ _ _] {:type (non-null 'Float)})
+(defmethod accept-spec 'clojure.core/decimal? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; inst? (fmap #(java.util.Date. %)
 ;;             (large-integer))
-(defmethod accept-spec 'clojure.core/inst? [_ _ _ _] {:type (non-null 'String)})
-
+(defmethod accept-spec 'clojure.core/inst? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; char? (char)
-(defmethod accept-spec 'clojure.core/char? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/char? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 ;; false? (return false)
-(defmethod accept-spec 'clojure.core/false? [_ _ _ _] {:type (non-null 'Boolean)})
+(defmethod accept-spec 'clojure.core/false? [_ spec _ _]
+  {:type (non-null 'Boolean)
+   :spec spec})
 
 ;; true? (return true)
-(defmethod accept-spec 'clojure.core/true? [_ _ _ _] {:type (non-null 'Boolean)})
+(defmethod accept-spec 'clojure.core/true? [_ spec _ _]
+  {:type (non-null 'Boolean)
+   :spec spec})
 
 ;; zero? (return 0)
-(defmethod accept-spec 'clojure.core/zero? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/zero? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; rational? (one-of [(large-integer) (ratio)])
-(defmethod accept-spec 'clojure.core/rational? [_ _ _ _] {:type (non-null 'Float)})
+(defmethod accept-spec 'clojure.core/rational? [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
 ;; ratio? (such-that ratio? (ratio))
-(defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.core/ratio? [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 ;; bytes? (bytes)
-(defmethod accept-spec 'clojure.core/ratio? [_ _ _ _] {:type (non-null 'String)})
+(defmethod accept-spec 'clojure.core/ratio? [_ spec _ _]
+  {:type (non-null 'String)
+   :spec spec})
 
 (defmethod accept-spec ::visitor/set [dispatch spec children opts]
   (if-let [n (spec-name-or-alias spec opts)]
     (do
       (swap! *context* assoc-in [:enums n] {:values (vec (map util/clj-name->gql-enum-name children))})
-      {:type (non-null n)})
+      {:type (non-null n)
+       :spec spec})
     (throw (Exception. (str "Encountered a set with no name: " spec "\nEnsure sets are not wrapped (with `nilable` etc)")))))
 
 (defn remove-non-null
@@ -275,34 +349,40 @@
         spec-ref (s/get-spec spec)]
     (if title
       (non-null (merge {:objects (hash-map title
-                                           (merge {:fields (if (keyword? spec-ref)
-                                                             (make-optional-fields fields spec-ref)
-                                                             (make-optional-fields fields opt opt-un))}
-                                                  (when (keyword? spec-ref)
-                                                    {:ref spec-ref})))}
+                                           (if (keyword? spec-ref)
+                                             {:fields (make-optional-fields fields spec-ref)
+                                              :spec spec
+                                              :ref spec-ref}
+                                             {:fields (make-optional-fields fields opt opt-un)
+                                              :spec spec}))}
                        (when enums
                          {:enums enums})))
       (throw (Exception. (str "Cannot process anonymous `s/keys` specs. Please provide a name: " spec) )))))
 
 (defmethod accept-spec 'clojure.spec.alpha/or [_ spec children _]
   (if-let [t (some #(when (not= ::invalid %) %) children)]
-    t
+    (assoc t :spec spec)
     (throw (Exception. (str "Error: 's/or' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
 
 (defmethod accept-spec 'clojure.spec.alpha/and [_ spec children _]
   (if-let [t (some #(when (not= ::invalid %) %) children)]
-    t
+    (assoc t :spec spec)
     (throw (Exception. (str "Error: 's/and' must include a recognised predicate (" spec ") - " (impl/extract-form spec))))))
 
-(defmethod accept-spec 'clojure.spec.alpha/double-in [_ _ _ _] {:type (non-null 'Float)})
+(defmethod accept-spec 'clojure.spec.alpha/double-in [_ spec _ _]
+  {:type (non-null 'Float)
+   :spec spec})
 
-(defmethod accept-spec 'clojure.spec.alpha/int-in [_ _ _ _] {:type (non-null 'Int)})
+(defmethod accept-spec 'clojure.spec.alpha/int-in [_ spec _ _]
+  {:type (non-null 'Int)
+   :spec spec})
 
 (defmethod accept-spec 'clojure.spec.alpha/merge [_ spec children opts]
   (let [objects (not-empty (apply merge (map (comp :fields second first :objects second) children)))
         enums   (not-empty (apply merge (map (comp :enums second) children)))
         name    (spec-name-or-alias spec opts)]
-    (non-null (merge {:objects (hash-map name {:fields objects})}
+    (non-null (merge {:objects (hash-map name {:fields objects
+                                               :spec spec})}
                      (when enums
                        {:enums enums})))))
 
@@ -315,37 +395,41 @@
 (defmethod accept-spec ::visitor/map-of [_ spec children _]
   ::invalid)
 
-(defmethod accept-spec ::visitor/set-of [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec ::visitor/set-of [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
-(defmethod accept-spec ::visitor/vector-of [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec ::visitor/vector-of [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
-(defmethod accept-spec 'clojure.spec.alpha/* [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec 'clojure.spec.alpha/* [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
-(defmethod accept-spec 'clojure.spec.alpha/+ [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec 'clojure.spec.alpha/+ [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
-(defmethod accept-spec 'clojure.spec.alpha/? [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec 'clojure.spec.alpha/? [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
 (defmethod accept-spec 'clojure.spec.alpha/alt [_ _ children _]
   (throw (Exception. "GraphQL cannot represent OR/ALT logic")))
 
-(defmethod accept-spec 'clojure.spec.alpha/cat [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec 'clojure.spec.alpha/cat [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
 ;; &
 
-(defmethod accept-spec 'clojure.spec.alpha/tuple [_ _ children _]
-  (list (impl/unwrap children) true))
+(defmethod accept-spec 'clojure.spec.alpha/tuple [_ spec children _]
+  (list (impl/unwrap children) spec true))
 
 ;; keys*
 
-(defmethod accept-spec 'clojure.spec.alpha/nilable [_ _ children _]
+(defmethod accept-spec 'clojure.spec.alpha/nilable [_ spec children _]
   ;; no nothing; `non-null` is controlled by req/req-un/opt/opt-un
-  (impl/unwrap children))
+  (let [r (impl/unwrap children)]
+    (cond (map? r)
+          (assoc r :spec spec)
+          :else
+          (throw (Exception. "whoa, what's this???")))))
 
 (s/def ::replacement-types (s/+ #{'String 'Float 'Int 'Boolean 'ID
                                   'non-null 'list}))
@@ -365,16 +449,19 @@
         replacement-type (:type data)
         un-children (impl/unwrap children)]
     (merge
-      (if (valid-replacement-type? replacement-type)
-        (let [replacement-type' (if (and (seq? replacement-type) ;; extract valid type override fn if we have one
-                                         (valid-type-override-syms (first replacement-type)))
-                                  (second replacement-type)
-                                  replacement-type)]
-          (if (map? un-children)
-            (assoc un-children :type replacement-type')
-            {:type replacement-type'}))
-        un-children)
-      (select-keys data [:description]))))
+     (if (valid-replacement-type? replacement-type)
+       (let [replacement-type' (if (and (seq? replacement-type) ;; extract valid type override fn if we have one
+                                        (valid-type-override-syms (first replacement-type)))
+                                 (second replacement-type)
+                                 replacement-type)]
+         (if (map? un-children)
+           (assoc un-children
+                  :type replacement-type'
+                  :spec spec)
+           {:type replacement-type'
+            :spec spec}))
+       (assoc un-children :spec spec))
+     (select-keys data [:description]))))
 
 (defmethod accept-spec ::default [_ spec _ opts]
   (try
