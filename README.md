@@ -50,7 +50,7 @@ Mutations are very similar to queries. To add a mutation to the schema use `atta
 ```
 `::mutation-spec` is a spec for the GraphQL mutation, `::object` is the spec for the returned data, and `mutator-fn` is the function that will mutate the existing data and return the new, mutated data.
 
-### Field Resolvers
+### Field Resolvers 
 
 To provide a resolver for a specific field, use `attach-field-resolver`:
 
@@ -157,7 +157,7 @@ In this example, if `my.ns/type` is an object, the corresponding object would be
 
 ## License
 
-Copyright © 2020 WorksHub
+Copyright © 2020 WorksHub 
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
