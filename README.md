@@ -40,6 +40,18 @@ To add a query to the schema use `attach-query`:
 ```
 `::query-spec` is a spec for the GraphQL query, `::object` is the spec for the returned data, and `query-resolver-fn` is the resolver function that will fetch and return the data.
 
+Alternatively, your `query-resolver-fn` has `:leona/query-spec` and `:leona/results-spec` metadata:
+
+```clojure
+(defn
+  ^{:leona/query-spec ::query-spec
+    :leona/results-spec ::object}
+  query-resolver-fn [])
+
+(-> (leona/create)
+    (leona/attach-query query-resolver-fn))
+```
+
 ### Mutations
 
 Mutations are very similar to queries. To add a mutation to the schema use `attach-mutation`:
@@ -49,6 +61,18 @@ Mutations are very similar to queries. To add a mutation to the schema use `atta
     (leona/attach-mutation ::mutation-spec ::object mutator-fn))
 ```
 `::mutation-spec` is a spec for the GraphQL mutation, `::object` is the spec for the returned data, and `mutator-fn` is the function that will mutate the existing data and return the new, mutated data.
+
+Alternatively, your `mutator-fn` has `:leona/mutation-spec` and `:leona/results-spec` metadata:
+
+```clojure
+(defn
+  ^{:leona/mutation-spec ::mutation-spec
+    :leona/results-spec ::object}
+   mutator-fn [])
+
+(-> (leona/create)
+    (leona/attach-query mutator-fn))
+```
 
 ### Field Resolvers 
 

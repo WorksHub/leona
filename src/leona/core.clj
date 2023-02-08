@@ -162,10 +162,15 @@
     input? (update :input-objects conj object-spec)))
 
 (defn attach-query
-  "Adds a query resolver into the provided pre-compiled data structure"
-  #_([m resolver]
-     ;; TODO infer specs from fdef
-     )
+  "Adds a query resolver into the provided pre-compiled data structure.
+  In the form [m resolver] I expect `:leona/query-spec` and `:leona/results-spec`
+  as metadata on `resolver`.
+  Specs should be keywords, see [[::query-spec]]."
+  ([m resolver]
+   (let [{:leona/keys [query-spec results-spec]} (meta resolver)
+         _ (assert query-spec)
+         _ (assert results-spec)]
+     (attach-query m query-spec results-spec resolver)))
   ([m query-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m
@@ -174,10 +179,15 @@
                                             :query-spec query-spec}))))
 
 (defn attach-mutation
-  "Adds a mutation resolver fn into the provided pre-compiled data structure"
-  #_([m resolver]
-     ;; TODO infer specs from fdef
-     )
+  "Adds a mutation resolver fn into the provided pre-compiled data structure
+  In the form [m resolver] I expect `:leona/mutation-spec` and `:leona/results-spec`
+  as metadata on `resolver`.
+  Specs should be keywords, see [[::mutation-spec]]."
+  ([m resolver]
+   (let [{:leona/keys [mutation-spec results-spec]} (meta resolver)
+         _ (assert mutation-spec)
+         _ (assert results-spec)]
+     (attach-mutation m mutation-spec results-spec resolver)))
   ([m mutation-spec results-spec resolver]
    {:pre [(s/valid? ::pre-compiled-data m)]}
    (-> m

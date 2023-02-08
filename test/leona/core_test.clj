@@ -467,3 +467,40 @@
                   (leona/compile))
         r (leona/execute schema "{ myQuery { result } }")]
     (is (= "hello"  (get-in r [:data :myQuery :result])))))
+
+;; https://github.com/WorksHub/leona/issues/4 #4
+(deftest provide-input-spec-from-metadata
+  (let [droid-resolver (fn [ctx query value])
+        droid-resolver-with-meta
+        (with-meta droid-resolver
+          {:leona/query-spec ::test/droid-query
+           :leona/results-spec  ::test/droid})
+        droid-mutator  (fn [ctx query value])
+        droid-mutator-with-meta
+        (with-meta droid-mutator
+          {:leona/mutation-spec ::test/droid-mutation
+           :leona/results-spec ::test/droid})
+        human-resolver (fn [ctx query value])
+        middleware     (fn [handler ctx query value])
+        precompiled-schema-with-args
+        (-> (leona/create)
+            (leona/attach-query ::test/droid-query ::test/droid droid-resolver)
+            (leona/attach-mutation ::test/droid-mutation ::test/droid droid-mutator)
+            (leona/attach-field-resolver ::test/owner human-resolver)
+            (leona/attach-middleware middleware))
+        precompiled-schema-with-metadata
+        (-> (leona/create)
+            (leona/attach-query droid-resolver-with-meta)
+            (leona/attach-mutation droid-mutator-with-meta)
+            (leona/attach-field-resolver ::test/owner human-resolver)
+            (leona/attach-middleware middleware))]
+    (is
+     (= (-> precompiled-schema-with-args :mutations ::droid :mutation-spec)
+        (-> precompiled-schema-with-metadata :mutations ::droid :mutation-spec)))
+    (is
+     (= (-> precompiled-schema-with-args :queries ::droid :query-spec)
+        (-> precompiled-schema-with-metadata :queries ::droid :query-spec)))
+    (is
+     (= (-> precompiled-schema-with-args :specs)
+        (-> precompiled-schema-with-metadata :specs)))))
+
